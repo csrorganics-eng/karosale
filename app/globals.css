@@ -1,0 +1,98 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@400;700;900&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-primary: #6faf8f;
+  --color-primary-light: #a8d5ba;
+  --color-accent: #dcefe2;
+  --color-accent-soft: #eef7f1;
+  --color-background: #f8fcf9;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f3f8f4;
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #4b5563;
+  --color-border: #d7e7dc;
+  --color-error: #dc2626;
+  --color-success: #16a34a;
+  --color-admin-sidebar: #1b4332;
+
+  --radius-card: 14px;
+  --radius-button: 10px;
+  --radius-input: 8px;
+  --radius-pill: 24px;
+
+  --shadow-soft: 0 2px 8px rgba(111, 175, 143, 0.08);
+  --shadow-medium: 0 6px 24px rgba(111, 175, 143, 0.12);
+}
+
+:root {
+  --primary: #6faf8f;
+  --primary-light: #a8d5ba;
+  --accent: #dcefe2;
+  --accent-soft: #eef7f1;
+  --background: #f8fcf9;
+  --surface: #ffffff;
+  --surface-subtle: #f3f8f4;
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --border: #d7e7dc;
+  --error: #dc2626;
+  --success: #16a34a;
+  --admin-sidebar: #1b4332;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--primary-light);
+  color: var(--text-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-subtle);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
