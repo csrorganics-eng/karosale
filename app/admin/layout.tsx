@@ -6,6 +6,7 @@ import {
   Users,
   Settings,
   ClipboardList,
+  Sparkles,
 } from "lucide-react";
 
 const nav = [
@@ -13,6 +14,7 @@ const nav = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/inventory", label: "Inventory", icon: ClipboardList },
+  { href: "/admin/karma-rewards", label: "Karma Rewards", icon: Sparkles },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -40,14 +42,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
         <div className="border-t border-white/10 p-4">
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-white/60 hover:text-white"
-          >
-            ← Storefront (new tab)
-          </a>
+          <Link href="/" className="text-sm text-white/60 hover:text-white">
+            ← Back to store
+          </Link>
         </div>
       </aside>
       <div className="flex flex-1 flex-col">

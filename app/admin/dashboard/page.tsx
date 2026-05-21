@@ -56,6 +56,23 @@ export default function AdminDashboardPage() {
       <h1 className="font-display text-2xl font-bold">Dashboard</h1>
       <p className="text-text-secondary">Live overview · ● Live</p>
 
+      <Card className="mt-6 border-primary/20 bg-accent-soft/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Karma Rewards</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-text-secondary">
+            Edit loyalty tiers, point ranges, discounts, and badges.
+          </p>
+          <Link
+            href="/admin/karma-rewards"
+            className="rounded-[8px] bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            Manage rewards
+          </Link>
+        </CardContent>
+      </Card>
+
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">

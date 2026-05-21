@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackToAccount } from "@/components/storefront/BackToAccount";
 import { Button } from "@/components/ui/button";
 
 export default async function CheckoutSuccessPage({
@@ -9,7 +10,11 @@ export default async function CheckoutSuccessPage({
   const { order } = await searchParams;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-24 text-center">
+    <div className="mx-auto max-w-lg px-4 py-24">
+      <div className="text-left">
+        <BackToAccount />
+      </div>
+      <div className="text-center">
       <p className="text-6xl text-success">✓</p>
       <h1 className="font-display mt-4 text-3xl font-bold">Order Placed!</h1>
       {order && (
@@ -25,6 +30,7 @@ export default async function CheckoutSuccessPage({
         <Button variant="outline" asChild>
           <Link href="/shop">Continue Shopping</Link>
         </Button>
+      </div>
       </div>
     </div>
   );

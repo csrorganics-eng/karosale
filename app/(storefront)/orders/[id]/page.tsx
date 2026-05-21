@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { BackToAccount } from "@/components/storefront/BackToAccount";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,8 +73,9 @@ export default function OrderDetailPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
+      <BackToAccount />
       <Link href="/orders" className="text-sm text-primary hover:underline">
-        ← Back to orders
+        ← All orders
       </Link>
       <div className="mt-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold">{order.orderNumber}</h1>

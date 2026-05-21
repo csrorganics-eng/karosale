@@ -4,32 +4,10 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { BackToHome } from "@/components/storefront/BackToHome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-function AccountBackButton() {
-  const router = useRouter();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className="mb-4 -ml-2 gap-2 text-text-secondary hover:text-text-primary"
-      onClick={() => {
-        if (typeof window !== "undefined" && window.history.length > 1) {
-          router.back();
-        } else {
-          router.push("/");
-        }
-      }}
-    >
-      <ArrowLeft className="h-4 w-4" />
-      Back
-    </Button>
-  );
-}
 
 function AccountPageContent() {
   const { data: session, status, update } = useSession();
@@ -40,10 +18,6 @@ function AccountPageContent() {
   const [email, setEmail] = useState("qa.tester@karosale.com");
   const [password, setPassword] = useState("QATester@123");
   const [error, setError] = useState<string | null>(null);
-
-  function openAdminInNewTab(path: string) {
-    window.open(path, "_blank", "noopener,noreferrer");
-  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -60,14 +34,8 @@ function AccountPageContent() {
 
     await update();
 
-    const target = redirectTo ?? null;
-    if (target?.startsWith("/admin") || target?.startsWith("/packer")) {
-      openAdminInNewTab(target);
-      router.replace("/account");
-      return;
-    }
-    if (target) {
-      router.push(target);
+    if (redirectTo) {
+      router.push(redirectTo);
       return;
     }
     router.refresh();
@@ -76,7 +44,7 @@ function AccountPageContent() {
   if (status === "loading") {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <AccountBackButton />
+        <BackToHome />
         Loading...
       </div>
     );
@@ -85,7 +53,7 @@ function AccountPageContent() {
   if (session?.user) {
     return (
       <div className="mx-auto max-w-md px-4 py-16">
-        <AccountBackButton />
+        <BackToHome />
         <Card>
           <CardHeader>
             <CardTitle>My Account</CardTitle>
@@ -106,22 +74,13 @@ function AccountPageContent() {
                 <Link href="/loyalty">Karma Rewards</Link>
               </Button>
               {session.user.role === "admin" && (
-                <Button
-                  type="button"
-                  onClick={() => openAdminInNewTab("/admin/dashboard")}
-                >
-                  Admin Dashboard
-                  <span className="ml-2 text-xs opacity-80">(opens in new tab)</span>
+                <Button asChild>
+                  <Link href="/admin/dashboard">Admin Dashboard</Link>
                 </Button>
               )}
               {(session.user.role === "packer" || session.user.role === "admin") && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => openAdminInNewTab("/packer/picklist")}
-                >
-                  Packer Pick List
-                  <span className="ml-2 text-xs opacity-80">(opens in new tab)</span>
+                <Button variant="secondary" asChild>
+                  <Link href="/packer/picklist">Packer Pick List</Link>
                 </Button>
               )}
             </div>
@@ -136,15 +95,10 @@ function AccountPageContent() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
-      <AccountBackButton />
+      <BackToHome />
       <Card>
         <CardHeader>
           <CardTitle>Sign In</CardTitle>
-          {redirectTo && (
-            <p className="text-sm text-text-secondary">
-              After sign-in, admin tools open in a new tab.
-            </p>
-          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">

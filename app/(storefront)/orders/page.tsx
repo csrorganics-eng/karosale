@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BackToAccount } from "@/components/storefront/BackToAccount";
 import { Badge } from "@/components/ui/badge";
 import { formatINR } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ export default function OrdersPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
+      <BackToAccount />
       <h1 className="font-display text-3xl font-bold">My Orders</h1>
       <div className="mt-6 space-y-4">
         {orders.map((o) => (

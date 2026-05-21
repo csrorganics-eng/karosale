@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { BackToAccount } from "@/components/storefront/BackToAccount";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatINR } from "@/lib/utils";
@@ -75,18 +76,22 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24">
+        <BackToAccount />
+        <div className="text-center">
         <p className="text-6xl">🛒</p>
         <h1 className="font-display mt-4 text-2xl font-bold">Your cart is empty</h1>
         <Button className="mt-6" asChild>
           <Link href="/shop">Start Shopping</Link>
         </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <BackToAccount />
       <h1 className="font-display text-3xl font-bold">Your Cart</h1>
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
