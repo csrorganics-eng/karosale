@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
@@ -66,16 +67,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.sub = user.id;
         token.role = (user as { role?: string }).role ?? "customer";
       }
-      if (token.id && !token.role) {
+
+      const userId = (token.id ?? token.sub) as string | undefined;
+      if (userId) {
         const [dbUser] = await db
           .select({ role: users.role })
           .from(users)
-          .where(eq(users.id, token.id as string))
+          .where(eq(users.id, userId))
           .limit(1);
-        token.role = dbUser?.role ?? "customer";
+        if (dbUser) token.role = dbUser.role;
       }
+
       return token;
     },
     async session({ session, token }) {

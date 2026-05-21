@@ -229,7 +229,65 @@ async function main() {
     addressId = created?.id;
   }
 
-  console.log(`✅ Seeded loyalty tiers, users, ${productCount} new products, coupons`);
+  const allProducts = await db.select({ id: products.id, price: products.price, name: products.name, sku: products.sku }).from(products).limit(25);
+
+  const orderStatuses = ["pending", "confirmed", "packed", "shipped", "delivered"] as const;
+  let ordersCreated = 0;
+
+  if (addressId && allProducts.length >= 2) {
+    const { generateOrderNumber } = await import("../lib/orders");
+    for (let i = 0; i < Math.min(5, orderStatuses.length); i++) {
+      const orderNumber = await generateOrderNumber();
+      const [existing] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
+      if (existing) continue;
+
+      const p1 = allProducts[i % allProducts.length]!;
+      const p2 = allProducts[(i + 1) % allProducts.length]!;
+      const subtotal = parseFloat(p1.price) + parseFloat(p2.price);
+      const total = subtotal;
+
+      const [order] = await db
+        .insert(orders)
+        .values({
+          orderNumber,
+          userId: qaCustomer.id,
+          addressId,
+          status: orderStatuses[i]!,
+          paymentMethod: i % 2 === 0 ? "razorpay" : "cod",
+          paymentStatus: orderStatuses[i] === "pending" ? "pending" : "captured",
+          subtotal: String(subtotal),
+          total: String(total),
+          shippingCharge: "0",
+        })
+        .returning();
+
+      if (order) {
+        ordersCreated++;
+        await db.insert(orderItems).values([
+          {
+            orderId: order.id,
+            productId: p1.id,
+            productName: p1.name,
+            productSku: p1.sku,
+            qty: 1,
+            unitPrice: p1.price,
+            total: p1.price,
+          },
+          {
+            orderId: order.id,
+            productId: p2.id,
+            productName: p2.name,
+            productSku: p2.sku,
+            qty: 1,
+            unitPrice: p2.price,
+            total: p2.price,
+          },
+        ]);
+      }
+    }
+  }
+
+  console.log(`✅ Seeded loyalty tiers, users, ${productCount} new products, ${ordersCreated} orders, coupons`);
   console.log("   Customer: qa.tester@karosale.com / QATester@123");
   console.log("   Admin:    admin.qa@karosale.com / AdminQA@123");
   console.log("   Packer:   packer.qa@karosale.com / PackerQA@123");

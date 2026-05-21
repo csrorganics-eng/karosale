@@ -8,6 +8,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { uploadToR2 } from "@/lib/r2";
+import { generatePackagingPdfBuffer } from "@/lib/pdf/generate-packaging-pdf";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 
 export const packagingTagGenerateFunction = inngest.createFunction(
@@ -39,30 +40,48 @@ export const packagingTagGenerateFunction = inngest.createFunction(
     if (!data?.order) return { success: false, reason: "order_not_found" };
 
     const pdfUrl = await step.run("generate-and-upload", async () => {
-      const { order, user, address, items } = data;
-      const lines = [
-        "KAROSALE — PACKING SLIP",
-        `ORDER #${order.orderNumber}`,
-        `Customer: ${user?.name ?? "Customer"}`,
-        `${address?.line1 ?? ""}`,
-        `${address?.city ?? ""}, ${address?.state ?? ""} - ${address?.pincode ?? ""}`,
-        `Phone: ${address?.phone ?? user?.phone ?? ""}`,
-        "--- ITEMS ---",
-        ...items.map((i) => `${i.productName} | SKU: ${i.productSku} | Qty: ${i.qty}`),
-        `Packed: ${new Date().toLocaleDateString("en-IN")}`,
-        "Organic. Natural. Trusted.",
-      ];
+      const { order, user, address, items, tag } = data;
+      const barcodeLabel = tag?.barcodeString ?? order.orderNumber;
 
-      const buffer = Buffer.from(lines.join("\n"), "utf-8");
+      let buffer: Buffer;
+      let ext: "pdf" | "txt" = "pdf";
+      try {
+        buffer = await generatePackagingPdfBuffer({
+          orderNumber: order.orderNumber,
+          customerName: user?.name ?? "Customer",
+          phone: address?.phone ?? user?.phone ?? "",
+          addressLines: [
+            address?.line1 ?? "",
+            `${address?.city ?? ""}, ${address?.state ?? ""} - ${address?.pincode ?? ""}`,
+          ].filter(Boolean),
+          items: items.map((i) => ({
+            name: i.productName,
+            sku: i.productSku,
+            qty: i.qty,
+          })),
+          barcodeLabel,
+          packedDate: new Date().toLocaleDateString("en-IN"),
+        });
+      } catch (err) {
+        console.error("[packaging-tag] PDF render failed, using text fallback:", err);
+        ext = "txt";
+        const lines = [
+          "KAROSALE — PACKING SLIP",
+          `ORDER #${order.orderNumber}`,
+          `Barcode: ${barcodeLabel}`,
+        ];
+        buffer = Buffer.from(lines.join("\n"), "utf-8");
+      }
+
       const year = new Date().getFullYear();
       const month = String(new Date().getMonth() + 1).padStart(2, "0");
-      const key = `packaging-tags/${year}/${month}/${order.orderNumber}.txt`;
+      const key = `packaging-tags/${year}/${month}/${order.orderNumber}.${ext}`;
 
       try {
         const url = await uploadToR2({
           key,
           body: buffer,
-          contentType: "text/plain",
+          contentType: ext === "pdf" ? "application/pdf" : "text/plain",
         });
 
         await db

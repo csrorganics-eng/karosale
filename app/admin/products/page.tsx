@@ -28,7 +28,15 @@ export default function AdminProductsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold">Products</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-2xl font-bold">Products</h1>
+        <a
+          href="/admin/products/new"
+          className="rounded-[8px] bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+        >
+          Add product
+        </a>
+      </div>
       <p className="mt-1 text-text-secondary">{products.length} products in catalog</p>
       <div className="mt-6 overflow-x-auto rounded-[14px] border border-border bg-surface">
         <table className="w-full text-sm">
@@ -45,7 +53,11 @@ export default function AdminProductsPage() {
           <tbody>
             {products.map((p) => (
               <tr key={p.id} className="border-b border-border/50">
-                <td className="p-4 font-medium">{p.name}</td>
+                <td className="p-4 font-medium">
+                  <a href={`/admin/products/${p.id}/edit`} className="hover:text-primary hover:underline">
+                    {p.name}
+                  </a>
+                </td>
                 <td className="p-4 font-mono text-xs">{p.sku}</td>
                 <td className="p-4">{p.categoryName}</td>
                 <td className="p-4">{formatINR(parseFloat(p.price))}</td>

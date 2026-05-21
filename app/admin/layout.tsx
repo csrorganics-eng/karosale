@@ -40,9 +40,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
         <div className="border-t border-white/10 p-4">
-          <Link href="/" className="text-sm text-white/60 hover:text-white">
-            ← Back to store
-          </Link>
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-white/60 hover:text-white"
+          >
+            ← Storefront (new tab)
+          </a>
         </div>
       </aside>
       <div className="flex flex-1 flex-col">

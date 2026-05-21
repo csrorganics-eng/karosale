@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Menu, Search, ShoppingCart, User, X } from "lucide-react";
+import { Menu, ShoppingCart, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchBar } from "@/components/storefront/SearchBar";
+import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -15,6 +17,7 @@ const navLinks = [
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -36,7 +39,11 @@ export function Header() {
           Karosale
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <div className="hidden max-w-xs flex-1 px-4 md:block">
+          <SearchBar />
+        </div>
+
+        <nav className="hidden items-center gap-8 lg:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -49,15 +56,8 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/shop" aria-label="Search">
-              <Search className="h-5 w-5" />
-            </Link>
-          </Button>
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/cart" aria-label="Cart">
-              <ShoppingCart className="h-5 w-5" />
-            </Link>
+          <Button variant="ghost" size="icon" onClick={() => setCartOpen(true)} aria-label="Cart">
+            <ShoppingCart className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" className="hidden md:flex" asChild>
             <Link href="/account" aria-label="Account">
@@ -75,6 +75,8 @@ export function Header() {
           </Button>
         </div>
       </div>
+
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
 
       {mobileOpen && (
         <nav className="border-t border-border bg-surface px-4 py-4 md:hidden">

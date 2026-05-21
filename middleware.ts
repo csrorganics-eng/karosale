@@ -2,12 +2,36 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+function getSessionToken(request: NextRequest) {
+  const isProduction = process.env.NODE_ENV === "production";
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
+  return getToken({
+    req: request,
+    secret,
+    secureCookie: isProduction,
+    cookieName: isProduction
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token",
+  });
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
+  let token = await getSessionToken(request);
+
+  // Fallback for legacy NextAuth v4 cookie name on some deployments
+  if (!token) {
+    token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === "production",
+      cookieName:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-next-auth.session-token"
+          : "next-auth.session-token",
+    });
+  }
 
   const isLoggedIn = !!token;
   const role = (token?.role as string) ?? "customer";
