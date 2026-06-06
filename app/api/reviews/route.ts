@@ -2,7 +2,7 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { reviews, orders } from "@/lib/db/schema";
+import { reviews, orders, reviewImages } from "@/lib/db/schema";
 import { jsonOk, jsonError } from "@/lib/api-response";
 
 const createSchema = z.object({
@@ -13,6 +13,7 @@ const createSchema = z.object({
   body: z.string().min(10).max(2000),
   pros: z.string().optional(),
   cons: z.string().optional(),
+  imageUrls: z.array(z.string().url()).max(3).optional(),
 });
 
 export async function POST(request: Request) {
@@ -50,6 +51,15 @@ export async function POST(request: Request) {
         status: "pending",
       })
       .returning();
+
+    if (parsed.data.imageUrls?.length && created) {
+      for (const url of parsed.data.imageUrls) {
+        await db.insert(reviewImages).values({
+          reviewId: created.id,
+          url,
+        });
+      }
+    }
 
     return jsonOk({ review: created }, 201);
   } catch (error) {

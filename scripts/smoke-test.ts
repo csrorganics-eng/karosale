@@ -14,6 +14,7 @@ async function main() {
     check("/api/products"),
     check("/api/categories"),
     check("/api/admin/dashboard", 401),
+    check("/api/loyalty/balance", 401),
   ]);
   const passed = results.filter(Boolean).length;
   console.log(`\n${passed}/${results.length} passed`);

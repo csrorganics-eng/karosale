@@ -54,6 +54,7 @@
     "next": "^15.1.6",
     "next-auth": "^5.0.0-beta.25",
     "openai": "^4.79.1",
+    "posthog-js": "^1.381.0",
     "razorpay": "^2.9.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -67,6 +68,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/bwip-js": "^3.2.3",
@@ -74,7 +76,6 @@
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "drizzle-kit": "^0.30.2",
-    "@eslint/eslintrc": "^3.2.0",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.6",
     "postcss": "^8.5.1",

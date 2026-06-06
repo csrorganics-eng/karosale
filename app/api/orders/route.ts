@@ -1,12 +1,9 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { auth, requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  cartItems,
-  orderItems,
-  orders,
-} from "@/lib/db/schema";
+import { cartItems, carts, couponUsage, coupons, loyaltyTransactions, orderItems, orders, users } from "@/lib/db/schema";
 import { findOrCreateCart, getCartWithItems } from "@/lib/db/queries/cart";
+import { validateCoupon } from "@/lib/db/queries/coupons";
 import { createOrderSchema } from "@/lib/validations/order";
 import {
   EXPRESS_SHIPPING_CHARGE,
@@ -15,9 +12,17 @@ import {
   KARMA_REDEMPTION_RATE,
   STANDARD_SHIPPING_CHARGE,
 } from "@/lib/orders";
+import {
+  computeKarmaDiscount,
+  computeTierDiscount,
+  getTierForPoints,
+  tierGrantsFreeShipping,
+} from "@/lib/loyalty";
 import { createRazorpayOrder } from "@/lib/razorpay";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { jsonOk, jsonError } from "@/lib/api-response";
+
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export async function GET(request: Request) {
   try {
@@ -38,6 +43,235 @@ export async function GET(request: Request) {
   } catch {
     return jsonError("Unauthorized", 401);
   }
+}
+
+const REFERRAL_WELCOME_COUPON = "WELCOME50";
+
+async function computeCheckoutTotals(
+  userId: string,
+  subtotal: number,
+  cartRecord: typeof carts.$inferSelect | null | undefined,
+  shippingType: "standard" | "express",
+  karmaPointsRequested: number,
+  options?: { couponCodeOverride?: string },
+) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new Error("User not found");
+
+  const tier = await getTierForPoints(user.karmaPoints);
+  const tierDiscount = computeTierDiscount(subtotal, tier);
+  const merchandiseAfterTier = Math.max(0, subtotal - tierDiscount);
+
+  const couponCode =
+    options?.couponCodeOverride?.trim() ||
+    cartRecord?.couponCode?.trim() ||
+    null;
+
+  let couponDiscount = 0;
+  let freeShippingFromCoupon = false;
+  let appliedCouponCode: string | null = null;
+
+  if (couponCode) {
+    const v = await validateCoupon(couponCode, userId, merchandiseAfterTier);
+    if (!v.valid) {
+      throw new Error(v.error ?? "Coupon is no longer valid for this cart");
+    }
+    if (!v.coupon) {
+      throw new Error("Coupon state invalid");
+    }
+    couponDiscount = v.discount ?? 0;
+    freeShippingFromCoupon = v.freeShipping ?? false;
+    appliedCouponCode = v.coupon.code;
+  }
+
+  const afterCoupon = Math.max(0, merchandiseAfterTier - couponDiscount);
+
+  const maxKarmaRupees = afterCoupon * 0.5;
+  const maxPointsUsable = Math.floor(maxKarmaRupees * KARMA_REDEMPTION_RATE);
+  const effectiveKarmaPoints = Math.min(
+    karmaPointsRequested,
+    user.karmaPoints,
+    Math.max(0, maxPointsUsable),
+  );
+
+  const karmaDiscount = computeKarmaDiscount(effectiveKarmaPoints, afterCoupon);
+
+  let shippingCharge =
+    shippingType === "express" ? EXPRESS_SHIPPING_CHARGE : STANDARD_SHIPPING_CHARGE;
+
+  const netMerch = merchandiseAfterTier - couponDiscount;
+  const qualifiesThreshold = netMerch >= FREE_SHIPPING_THRESHOLD;
+  const tierFree = tierGrantsFreeShipping(tier, netMerch);
+
+  if (freeShippingFromCoupon || qualifiesThreshold || tierFree) {
+    shippingCharge = 0;
+  }
+
+  const total = Math.max(0, afterCoupon - karmaDiscount + shippingCharge);
+
+  return {
+    tierDiscount,
+    couponDiscount,
+    effectiveKarmaPoints,
+    karmaDiscount,
+    shippingCharge,
+    total,
+    appliedCouponCode,
+  };
+}
+
+async function persistOrder(
+  tx: DbTx,
+  params: {
+    sessionUserId: string;
+    orderNumber: string;
+    addressId: string;
+    paymentMethod: "razorpay" | "cod" | "wallet" | "upi";
+    subtotal: number;
+    tierDiscount: number;
+    cartRecord: typeof carts.$inferSelect | null | undefined;
+    couponDiscount: number;
+    appliedCouponCode: string | null;
+    effectiveKarmaPoints: number;
+    karmaDiscount: number;
+    shippingCharge: number;
+    total: number;
+    notes?: string | null;
+    isGift: boolean;
+    giftMessage?: string | null;
+    items: Awaited<ReturnType<typeof getCartWithItems>>["items"];
+    cartId: string;
+    deductKarmaNow: boolean;
+  },
+) {
+  const {
+    sessionUserId,
+    orderNumber,
+    addressId,
+    paymentMethod,
+    subtotal,
+    tierDiscount,
+    cartRecord,
+    couponDiscount,
+    appliedCouponCode,
+    effectiveKarmaPoints,
+    karmaDiscount,
+    shippingCharge,
+    total,
+    notes,
+    isGift,
+    giftMessage,
+    items,
+    cartId,
+    deductKarmaNow,
+  } = params;
+
+  let karmaBalanceAfter: number | null = null;
+
+  if (deductKarmaNow && effectiveKarmaPoints > 0) {
+    const [u2] = await tx
+      .select({ karmaPoints: users.karmaPoints })
+      .from(users)
+      .where(
+        and(eq(users.id, sessionUserId), sql`${users.karmaPoints} >= ${effectiveKarmaPoints}`),
+      )
+      .limit(1);
+    if (!u2) {
+      throw new Error("Insufficient karma points — please refresh and try again");
+    }
+    karmaBalanceAfter = u2.karmaPoints - effectiveKarmaPoints;
+    await tx
+      .update(users)
+      .set({ karmaPoints: karmaBalanceAfter, updatedAt: new Date() })
+      .where(eq(users.id, sessionUserId));
+  }
+
+  const [created] = await tx
+    .insert(orders)
+    .values({
+      orderNumber,
+      userId: sessionUserId,
+      addressId,
+      status: "pending",
+      paymentMethod,
+      paymentStatus: "pending",
+      subtotal: String(subtotal),
+      discountAmount: String(tierDiscount),
+      couponCode: appliedCouponCode,
+      couponDiscount: String(couponDiscount),
+      karmaPointsUsed: effectiveKarmaPoints,
+      karmaDiscount: String(karmaDiscount),
+      shippingCharge: String(shippingCharge),
+      taxAmount: "0",
+      total: String(total),
+      notes: notes ?? null,
+      isGift,
+      giftMessage: giftMessage ?? null,
+    })
+    .returning();
+
+  if (!created) throw new Error("Failed to create order");
+
+  if (appliedCouponCode) {
+    const [coupon] = await tx
+      .select()
+      .from(coupons)
+      .where(eq(coupons.code, appliedCouponCode))
+      .limit(1);
+    if (coupon) {
+      await tx.insert(couponUsage).values({
+        couponId: coupon.id,
+        userId: sessionUserId,
+        orderId: created.id,
+        discountApplied: String(couponDiscount),
+      });
+      await tx
+        .update(coupons)
+        .set({
+          usedCount: sql`${coupons.usedCount} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(coupons.id, coupon.id));
+    }
+  }
+
+  if (deductKarmaNow && effectiveKarmaPoints > 0 && karmaBalanceAfter !== null) {
+    await tx.insert(loyaltyTransactions).values({
+      userId: sessionUserId,
+      type: "redeemed",
+      points: -effectiveKarmaPoints,
+      balanceAfter: karmaBalanceAfter,
+      referenceId: created.id,
+      referenceType: "order",
+      description: `Redeemed ${effectiveKarmaPoints} karma points for order ${orderNumber}`,
+    });
+  }
+
+  for (const item of items) {
+    await tx.insert(orderItems).values({
+      orderId: created.id,
+      productId: item.productId,
+      variantId: item.variantId,
+      productName: item.productName,
+      productSku: item.productSlug,
+      productImage: item.imageUrl,
+      qty: item.qty,
+      unitPrice: item.unitPrice,
+      total: item.total,
+    });
+  }
+
+  await tx.delete(cartItems).where(eq(cartItems.cartId, cartId));
+  await tx
+    .update(carts)
+    .set({
+      couponCode: null,
+      couponDiscount: "0",
+      updatedAt: new Date(),
+    })
+    .where(eq(carts.id, cartId));
+
+  return created;
 }
 
 export async function POST(request: Request) {
@@ -66,63 +300,79 @@ export async function POST(request: Request) {
     }
 
     const subtotal = items.reduce((s, i) => s + parseFloat(i.total), 0);
-    const couponDiscount = parseFloat(cartRecord?.couponDiscount ?? "0");
-    const karmaDiscount = Math.min(
-      karmaPointsUsed / KARMA_REDEMPTION_RATE,
-      subtotal * 0.5,
-    );
 
-    let shippingCharge =
-      shippingType === "express" ? EXPRESS_SHIPPING_CHARGE : STANDARD_SHIPPING_CHARGE;
-    if (subtotal - couponDiscount >= FREE_SHIPPING_THRESHOLD) {
-      shippingCharge = 0;
+    const [userRow] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
+    if (!userRow) return jsonError("User not found", 404);
+
+    const tierPreview = await getTierForPoints(userRow.karmaPoints);
+    const tierDiscountPreview = computeTierDiscount(subtotal, tierPreview);
+    const merchandiseAfterTierPreview = Math.max(0, subtotal - tierDiscountPreview);
+
+    let welcomeCouponOptions: { couponCodeOverride?: string } | undefined;
+    if (
+      !cartRecord?.couponCode?.trim() &&
+      userRow.referredBy &&
+      userRow.totalOrders === 0
+    ) {
+      const w = await validateCoupon(
+        REFERRAL_WELCOME_COUPON,
+        session.user.id,
+        merchandiseAfterTierPreview,
+      );
+      if (w.valid) {
+        welcomeCouponOptions = { couponCodeOverride: REFERRAL_WELCOME_COUPON };
+      }
     }
 
-    const total = Math.max(
-      0,
-      subtotal - couponDiscount - karmaDiscount + shippingCharge,
-    );
+    let totals: Awaited<ReturnType<typeof computeCheckoutTotals>>;
+    try {
+      totals = await computeCheckoutTotals(
+        session.user.id,
+        subtotal,
+        cartRecord,
+        shippingType,
+        karmaPointsUsed,
+        welcomeCouponOptions,
+      );
+    } catch (e) {
+      return jsonError(e instanceof Error ? e.message : "Checkout validation failed", 400);
+    }
+
+    const {
+      tierDiscount,
+      couponDiscount,
+      appliedCouponCode,
+      effectiveKarmaPoints,
+      karmaDiscount,
+      shippingCharge,
+      total,
+    } = totals;
 
     const orderNumber = await generateOrderNumber();
 
-    const [order] = await db
-      .insert(orders)
-      .values({
+    const order = await db.transaction(async (tx) => {
+      return persistOrder(tx, {
+        sessionUserId: session.user.id,
         orderNumber,
-        userId: session.user.id,
         addressId,
-        status: "pending",
         paymentMethod,
-        paymentStatus: paymentMethod === "cod" ? "pending" : "pending",
-        subtotal: String(subtotal),
-        couponCode: cartRecord?.couponCode,
-        couponDiscount: String(couponDiscount),
-        karmaPointsUsed,
-        karmaDiscount: String(karmaDiscount),
-        shippingCharge: String(shippingCharge),
-        taxAmount: "0",
-        total: String(total),
-        notes: notes ?? null,
+        subtotal,
+        tierDiscount,
+        cartRecord,
+        couponDiscount,
+        appliedCouponCode,
+        effectiveKarmaPoints,
+        karmaDiscount,
+        shippingCharge,
+        total,
+        notes,
         isGift,
-        giftMessage: giftMessage ?? null,
-      })
-      .returning();
-
-    if (!order) return jsonError("Failed to create order", 500);
-
-    for (const item of items) {
-      await db.insert(orderItems).values({
-        orderId: order.id,
-        productId: item.productId,
-        variantId: item.variantId,
-        productName: item.productName,
-        productSku: item.productSlug,
-        productImage: item.imageUrl,
-        qty: item.qty,
-        unitPrice: item.unitPrice,
-        total: item.total,
+        giftMessage,
+        items,
+        cartId: cart.id,
+        deductKarmaNow: paymentMethod === "cod",
       });
-    }
+    });
 
     if (paymentMethod === "cod") {
       await inngest.send({

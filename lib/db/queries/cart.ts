@@ -70,3 +70,16 @@ export async function findOrCreateCart(userId?: string, sessionId?: string) {
   const [created] = await db.insert(carts).values({}).returning();
   return created!;
 }
+
+/** After checkout — remove line items and clear coupon state; keep cart row for reuse. */
+export async function clearCartContents(cartId: string) {
+  await db.delete(cartItems).where(eq(cartItems.cartId, cartId));
+  await db
+    .update(carts)
+    .set({
+      couponCode: null,
+      couponDiscount: "0",
+      updatedAt: new Date(),
+    })
+    .where(eq(carts.id, cartId));
+}

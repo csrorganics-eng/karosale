@@ -3,7 +3,7 @@
 import { signIn, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { BackToHome } from "@/components/storefront/BackToHome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,14 @@ function AccountPageContent() {
 
   const [email, setEmail] = useState("qa.tester@karosale.com");
   const [password, setPassword] = useState("QATester@123");
+  const [magicEmail, setMagicEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session?.user) {
+      void fetch("/api/referral/claim", { method: "POST" }).catch(() => undefined);
+    }
+  }, [session?.user?.id]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -126,6 +133,36 @@ function AccountPageContent() {
             <Button type="submit" className="w-full">
               Sign In
             </Button>
+            <div className="relative my-4 text-center text-xs text-text-secondary">
+              <span className="bg-surface px-2">or</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => signIn("google", { callbackUrl: redirectTo ?? "/" })}
+            >
+              Continue with Google
+            </Button>
+            <div className="mt-4 space-y-2">
+              <Input
+                type="email"
+                placeholder="Email for magic link"
+                value={magicEmail}
+                onChange={(e) => setMagicEmail(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={async () => {
+                  if (!magicEmail.trim()) return;
+                  await signIn("email", { email: magicEmail.trim(), callbackUrl: redirectTo ?? "/" });
+                }}
+              >
+                Email me a sign-in link
+              </Button>
+            </div>
           </form>
           <p className="mt-4 text-center text-xs text-text-secondary">
             QA admin: admin.qa@karosale.com / AdminQA@123

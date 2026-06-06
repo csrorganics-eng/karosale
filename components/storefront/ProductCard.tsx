@@ -4,6 +4,7 @@ import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/utils";
+import { WishlistToggle } from "@/components/storefront/WishlistToggle";
 
 export interface ProductCardProps {
   id: string;
@@ -22,6 +23,7 @@ export interface ProductCardProps {
 }
 
 export function ProductCard({
+  id,
   name,
   slug,
   price,
@@ -51,29 +53,35 @@ export function ProductCard({
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-[14px] border border-border bg-surface shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-medium)]">
-      <Link href={`/shop/${slug}`} className="relative aspect-square overflow-hidden bg-surface-subtle">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={name}
-            fill
-            className="object-cover transition-transform duration-320 group-hover:scale-105"
-            sizes="(max-width: 768px) 50vw, 25vw"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-4xl">🌿</div>
-        )}
+      <div className="relative aspect-square overflow-hidden bg-surface-subtle">
+        <Link href={`/shop/${slug}`} className="absolute inset-0 block">
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={name}
+              fill
+              className="object-cover transition-transform duration-320 group-hover:scale-105"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-4xl">🌿</div>
+          )}
+        </Link>
+        <WishlistToggle
+          productId={id}
+          className="absolute right-2 top-2 z-20 rounded-full bg-white/90 shadow-sm hover:bg-white"
+        />
         {isOrganicCertified && (
-          <Badge className="absolute left-2 top-2" variant="success">
+          <Badge className="pointer-events-none absolute left-2 top-2 z-10" variant="success">
             Organic
           </Badge>
         )}
         {isBestseller && (
-          <Badge className="absolute right-2 top-2" variant="warning">
+          <Badge className="pointer-events-none absolute right-2 top-12 z-10" variant="warning">
             Bestseller
           </Badge>
         )}
-      </Link>
+      </div>
 
       <div className="flex flex-1 flex-col p-4">
         {categoryName && (

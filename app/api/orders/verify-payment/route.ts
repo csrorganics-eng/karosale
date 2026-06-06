@@ -6,6 +6,7 @@ import { verifyPaymentSignature } from "@/lib/razorpay";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { jsonOk, jsonError } from "@/lib/api-response";
 import { requireAuth } from "@/lib/auth";
+import { applyKarmaRedemptionForPaidOrder } from "@/lib/loyalty";
 
 export async function POST(request: Request) {
   try {
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
 
     if (!order) return jsonError("Order not found", 404);
 
+    if (order.paymentStatus === "captured") {
+      return jsonOk({ success: true, orderId, duplicate: true });
+    }
+
     await db
       .update(orders)
       .set({
@@ -42,6 +47,8 @@ export async function POST(request: Request) {
         updatedAt: new Date(),
       })
       .where(eq(orders.id, orderId));
+
+    await applyKarmaRedemptionForPaidOrder(orderId);
 
     await inngest.send({
       name: INNGEST_EVENTS.ORDER_PLACED,

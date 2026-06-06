@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { getBusinessProfile } from "@/lib/business";
 
 const styles = StyleSheet.create({
   page: {
@@ -23,10 +24,17 @@ export interface PackagingTagData {
 }
 
 export function PackagingTagDocument({ data }: { data: PackagingTagData }) {
+  const biz = getBusinessProfile();
   return (
     <Document>
       <Page size={[283, 425]} style={styles.page}>
-        <Text style={styles.title}>KAROSALE — PACKING SLIP</Text>
+        <Text style={styles.title}>{biz.brandName.toUpperCase()} — PACKING SLIP</Text>
+        <Text style={{ ...styles.row, fontSize: 8, color: "#444" }}>
+          {biz.legalName} · GSTIN ({biz.gstStandsFor}) {biz.gstin}
+        </Text>
+        <Text style={{ ...styles.row, fontSize: 8, color: "#444" }}>
+          {biz.addressLine1}, {biz.addressLine2}, {biz.country}
+        </Text>
         <Text style={styles.row}>ORDER #{data.orderNumber}</Text>
         <Text style={styles.row}>Customer: {data.customerName}</Text>
         {data.addressLines.map((line, i) => (

@@ -10,6 +10,8 @@ import { expiryAlertFunction } from "./expiry-alert";
 import { codVerificationFunction } from "./cod-verification";
 import { referralRewardFunction } from "./referral-reward";
 import { invoiceGeneratorFunction } from "./invoice-generator";
+import { loyaltyExpireFunction } from "./loyalty-expire";
+import { campaignHeartbeatFunction } from "./campaign-heartbeat";
 
 export const inngestFunctions = [
   orderPlacedFunction,
@@ -24,4 +26,6 @@ export const inngestFunctions = [
   codVerificationFunction,
   referralRewardFunction,
   invoiceGeneratorFunction,
+  loyaltyExpireFunction,
+  campaignHeartbeatFunction,
 ];

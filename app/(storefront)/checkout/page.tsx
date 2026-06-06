@@ -40,6 +40,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "cod">("razorpay");
   const [loading, setLoading] = useState(false);
   const [showNewAddress, setShowNewAddress] = useState(false);
+  const [karmaBalance, setKarmaBalance] = useState(0);
+  const [karmaPointsUsed, setKarmaPointsUsed] = useState(0);
   const [newAddr, setNewAddr] = useState({
     name: "",
     phone: "",
@@ -71,6 +73,14 @@ export default function CheckoutPage() {
           setAddresses(list);
           const def = list.find((a) => a.isDefault) ?? list[0];
           if (def) setAddressId(def.id);
+        }
+      });
+
+    fetch("/api/loyalty/balance")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success && typeof json.data?.karmaPoints === "number") {
+          setKarmaBalance(json.data.karmaPoints);
         }
       });
   }, [status, router]);
@@ -108,7 +118,7 @@ export default function CheckoutPage() {
           addressId,
           paymentMethod,
           shippingType: "standard",
-          karmaPointsUsed: 0,
+          karmaPointsUsed,
         }),
       });
       const json = await res.json();
@@ -237,7 +247,25 @@ export default function CheckoutPage() {
               />
               Cash on Delivery
             </label>
-            <p className="text-lg font-semibold">Total: {formatINR(subtotal)}</p>
+            <div className="rounded-[10px] border border-border bg-surface-subtle p-4">
+              <p className="text-sm font-medium">Karma points</p>
+              <p className="text-xs text-text-secondary">
+                Balance: {karmaBalance} · 100 pts = ₹10 off · max 50% of order (online: deducted after payment)
+              </p>
+              <input
+                type="range"
+                min={0}
+                max={karmaBalance}
+                value={Math.min(karmaPointsUsed, karmaBalance)}
+                onChange={(e) => setKarmaPointsUsed(parseInt(e.target.value, 10))}
+                className="mt-2 w-full"
+              />
+              <p className="text-xs text-text-secondary">Using {karmaPointsUsed} points</p>
+            </div>
+            <p className="text-lg font-semibold">Merchandise: {formatINR(subtotal)}</p>
+            <p className="text-xs text-text-secondary">
+              Shipping, tier &amp; coupon discounts are calculated on the server when you place the order.
+            </p>
             <Button className="w-full" size="lg" disabled={loading || !addressId} onClick={placeOrder}>
               {loading ? "Processing..." : "Place Order"}
             </Button>

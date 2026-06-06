@@ -991,6 +991,29 @@ export const bundleItems = pgTable(
   (table) => [index("bundle_items_bundle_id_idx").on(table.bundleId)],
 );
 
+// --- Marketing campaigns (Phase 2) ---
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 255 }).notNull(),
+    campaignType: varchar("campaign_type", { length: 32 }).notNull().default("flash_sale"),
+    targetSegment: varchar("target_segment", { length: 40 }).notNull().default("all"),
+    couponCode: varchar("coupon_code", { length: 30 }),
+    notificationBody: text("notification_body"),
+    startsAt: timestamp("starts_at", { mode: "date" }).notNull(),
+    endsAt: timestamp("ends_at", { mode: "date" }).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("campaigns_active_idx").on(table.isActive),
+    index("campaigns_dates_idx").on(table.startsAt, table.endsAt),
+  ],
+);
+
 // --- B2B ---
 export const b2bInquiries = pgTable(
   "b2b_inquiries",

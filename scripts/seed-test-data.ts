@@ -36,6 +36,18 @@ async function main() {
     if (!existing) await db.insert(loyaltyTiers).values(tier);
   }
 
+  await db
+    .update(loyaltyTiers)
+    .set({ freeShippingOn: "299", updatedAt: new Date() })
+    .where(eq(loyaltyTiers.name, "Harvester"));
+  await db
+    .update(loyaltyTiers)
+    .set({
+      perks: { alwaysFreeShipping: true },
+      updatedAt: new Date(),
+    })
+    .where(eq(loyaltyTiers.name, "Master Farmer"));
+
   const passwordHash = await bcrypt.hash("QATester@123", 10);
   const adminHash = await bcrypt.hash("AdminQA@123", 10);
   const packerHash = await bcrypt.hash("PackerQA@123", 10);
@@ -187,6 +199,7 @@ async function main() {
   const couponDefs = [
     { code: "TESTSHIP", name: "Free Shipping Test", type: "free_shipping" as const, value: "0" },
     { code: "SAVE10", name: "10% Off", type: "percentage" as const, value: "10", min: "299" },
+    { code: "WELCOME50", name: "Referral welcome", type: "flat" as const, value: "50", min: "0", referral: true },
   ];
 
   for (const c of couponDefs) {
@@ -201,6 +214,7 @@ async function main() {
         startsAt: new Date(),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         isActive: true,
+        isReferralCoupon: Boolean((c as { referral?: boolean }).referral),
       });
     }
   }

@@ -10,6 +10,7 @@ import {
 import { uploadToR2 } from "@/lib/r2";
 import { generatePackagingPdfBuffer } from "@/lib/pdf/generate-packaging-pdf";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import { getBusinessProfile } from "@/lib/business";
 
 export const packagingTagGenerateFunction = inngest.createFunction(
   { id: "packaging-tag-generate", retries: 2 },
@@ -65,8 +66,11 @@ export const packagingTagGenerateFunction = inngest.createFunction(
       } catch (err) {
         console.error("[packaging-tag] PDF render failed, using text fallback:", err);
         ext = "txt";
+        const biz = getBusinessProfile();
         const lines = [
-          "KAROSALE — PACKING SLIP",
+          `${biz.brandName.toUpperCase()} — PACKING SLIP`,
+          `${biz.legalName} · GSTIN (${biz.gstStandsFor}) ${biz.gstin}`,
+          `${biz.addressLine1}, ${biz.addressLine2}`,
           `ORDER #${order.orderNumber}`,
           `Barcode: ${barcodeLabel}`,
         ];

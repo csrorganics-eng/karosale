@@ -18,7 +18,7 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
    Fill at minimum:
    - `DATABASE_URL` — Neon pooled connection string
    - `NEXTAUTH_SECRET` — `openssl rand -base64 32`
-   - `NEXTAUTH_URL` — `http://localhost:3000`
+   - `NEXTAUTH_URL` — `http://localhost:3000` (on Vercel, set to your deployment URL, e.g. `https://<project>.vercel.app`, same idea for `NEXT_PUBLIC_APP_URL`)
 
 3. **Database**
    ```bash
@@ -47,12 +47,12 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
 | Admin    | admin.qa@karosale.com   | AdminQA@123   |
 | Packer   | packer.qa@karosale.com  | PackerQA@123  |
 
-Coupons: `TESTSHIP`, `SAVE10`
+Coupons: `TESTSHIP`, `SAVE10`, `WELCOME50` (referral welcome)
 
 ## Project structure
 
 - `app/(storefront)/` — Customer shop
-- `app/(admin)/` — Admin back office
+- `app/admin/` — Admin back office
 - `app/(packer)/` — Warehouse pick list
 - `app/api/` — Route handlers
 - `lib/db/` — Drizzle schema & queries
@@ -76,12 +76,24 @@ Coupons: `TESTSHIP`, `SAVE10`
 | `npm run seed`    | Seed test data           |
 | `npm run smoke`   | Post-deploy smoke tests  |
 
+## Phase 1 & 2 (production-oriented)
+
+- **Checkout:** Tier discounts (from `loyalty_tiers`), coupon revalidation, karma slider (COD deducts immediately; Razorpay deducts after `verify-payment`).
+- **Referrals:** Visit `/r/{REFERRAL_CODE}` to set a cookie; after sign-in, `POST /api/referral/claim` links `referred_by`. Seeded coupon `WELCOME50` (flat ₹50) for referral programs.
+- **Auth:** Google OAuth loads only when `GOOGLE_CLIENT_ID` / `SECRET` are set. Email magic link uses Resend when `RESEND_API_KEY` is set.
+- **Admin:** Reviews moderation (`/admin/reviews`), campaigns (`/admin/marketing`), analytics snapshot (`/admin/analytics`), product bulk JSON import (`POST /api/admin/products/bulk-import` with `{ rows: [...] }`).
+- **Wishlist:** Logged-in users use `/api/wishlist`; guests use `localStorage` and merge on login.
+- **Inngest:** Added `loyalty-expire` (monthly) and `campaign-heartbeat` (daily).
+- **Schema:** New `campaigns` table — run `npm run db:push` or your migration flow after pulling.
+
 ## Services required for full functionality
 
 See `.env.example` for the complete list. Critical path:
 
 - **Neon** — database
 - **Razorpay** — payments (test keys for preview)
+- **PostHog** — product analytics (`NEXT_PUBLIC_POSTHOG_KEY`, optional `NEXT_PUBLIC_POSTHOG_HOST`)
+- **Business / tax** — seller on invoices & packing: `BUSINESS_*` in `.env.example` (defaults: GRSOrganics + Kerala placeholder + sample GSTIN)
 - **Resend** — email
 - **Interakt** — WhatsApp
 - **Fast2SMS** — OTP SMS

@@ -9,6 +9,7 @@ import {
 import { uploadToR2 } from "@/lib/r2";
 import { sendEmail } from "@/lib/resend";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import { getBusinessProfile } from "@/lib/business";
 
 export const invoiceGeneratorFunction = inngest.createFunction(
   { id: "invoice-generator", retries: 2 },
@@ -28,13 +29,15 @@ export const invoiceGeneratorFunction = inngest.createFunction(
         .where(eq(addresses.id, order.addressId))
         .limit(1);
 
+      const biz = getBusinessProfile();
       const lines = [
-        "KAROSALE — TAX INVOICE",
+        `${biz.brandName.toUpperCase()} — TAX INVOICE (Seller: ${biz.legalName})`,
         `Invoice for Order: ${order.orderNumber}`,
         `Date: ${new Date().toLocaleDateString("en-IN")}`,
+        `Seller GSTIN (${biz.gstStandsFor}): ${biz.gstin}`,
+        `Seller address: ${biz.addressLine1}, ${biz.addressLine2}, ${biz.country}`,
         `Customer: ${user?.name ?? ""}`,
-        `GSTIN: [Configure in settings]`,
-        `Bill to: ${address?.line1}, ${address?.city} ${address?.pincode}`,
+        `Ship to: ${address?.line1}, ${address?.city} ${address?.pincode}`,
         "---",
         ...items.map(
           (i) =>

@@ -10,6 +10,7 @@ const schema = z.object({
   phone: z.string().min(10),
   code: z.string().length(6),
   name: z.string().min(2).optional(),
+  referralCode: z.string().min(4).max(12).optional(),
 });
 
 export async function POST(request: Request) {
@@ -29,6 +30,17 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!user) {
+      let referredBy: string | undefined;
+      if (parsed.data.referralCode) {
+        const code = parsed.data.referralCode.trim().toUpperCase();
+        const [ref] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.referralCode, code))
+          .limit(1);
+        referredBy = ref?.id;
+      }
+
       const [created] = await db
         .insert(users)
         .values({
@@ -36,6 +48,7 @@ export async function POST(request: Request) {
           name: parsed.data.name ?? "Customer",
           email: `${clean}@phone.karosale.com`,
           referralCode: generateReferralCode(),
+          referredBy,
           emailVerified: new Date(),
         })
         .returning();

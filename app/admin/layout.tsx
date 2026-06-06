@@ -7,6 +7,9 @@ import {
   Settings,
   ClipboardList,
   Sparkles,
+  Megaphone,
+  BarChart3,
+  MessageSquareText,
 } from "lucide-react";
 
 const nav = [
@@ -14,7 +17,10 @@ const nav = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/inventory", label: "Inventory", icon: ClipboardList },
+  { href: "/admin/reviews", label: "Reviews", icon: MessageSquareText },
   { href: "/admin/karma-rewards", label: "Karma Rewards", icon: Sparkles },
+  { href: "/admin/marketing", label: "Marketing", icon: Megaphone },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

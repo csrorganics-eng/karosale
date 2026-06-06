@@ -14,7 +14,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https: http:",
-      "connect-src 'self' https://api.razorpay.com https://*.neon.tech https://*.inngest.com",
+      "connect-src 'self' https://api.razorpay.com https://*.neon.tech https://*.inngest.com https://*.posthog.com https://us.i.posthog.com https://eu.i.posthog.com https://us-assets.i.posthog.com https://eu-assets.i.posthog.com https://app.posthog.com",
       "frame-src https://api.razorpay.com https://checkout.razorpay.com",
     ].join("; "),
   },

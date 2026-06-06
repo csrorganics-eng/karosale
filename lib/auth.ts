@@ -3,66 +3,96 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import Email from "next-auth/providers/email";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, getDb } from "@/lib/db";
 import {
   accounts,
   sessions,
   users,
   verificationTokens,
 } from "@/lib/db/schema";
+import { sendEmail } from "@/lib/resend";
+
+const googleConfigured =
+  Boolean(process.env.GOOGLE_CLIENT_ID?.trim()) &&
+  Boolean(process.env.GOOGLE_CLIENT_SECRET?.trim());
+
+const emailMagicConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
+
+const providers = [
+  ...(googleConfigured
+    ? [
+        Google({
+          clientId: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          allowDangerousEmailAccountLinking: true,
+        }),
+      ]
+    : []),
+  ...(emailMagicConfigured
+    ? [
+        Email({
+          from: process.env.RESEND_FROM_EMAIL ?? "orders@karosale.com",
+          sendVerificationRequest: async ({ identifier, url }) => {
+            await sendEmail({
+              to: identifier,
+              subject: "Your Karosale sign-in link",
+              html: `<p>Click to sign in (expires soon):</p><p><a href="${url}">Sign in to Karosale</a></p>`,
+            });
+          },
+        }),
+      ]
+    : []),
+  Credentials({
+    id: "credentials",
+    name: "Email",
+    credentials: {
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      const email = credentials?.email as string | undefined;
+      const password = credentials?.password as string | undefined;
+      if (!email || !password) return null;
+
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (!user?.passwordHash || !user.isActive) return null;
+
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return null;
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        image: user.image,
+        role: user.role,
+      };
+    },
+  }),
+];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  adapter: process.env.DATABASE_URL?.trim()
+    ? DrizzleAdapter(getDb(), {
+        usersTable: users,
+        accountsTable: accounts,
+        sessionsTable: sessions,
+        verificationTokensTable: verificationTokens,
+      })
+    : undefined,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/account",
   },
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
-    }),
-    Credentials({
-      id: "credentials",
-      name: "Email",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        const email = credentials?.email as string | undefined;
-        const password = credentials?.password as string | undefined;
-        if (!email || !password) return null;
-
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, email))
-          .limit(1);
-
-        if (!user?.passwordHash || !user.isActive) return null;
-
-        const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) return null;
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
-        };
-      },
-    }),
-  ],
+  providers,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

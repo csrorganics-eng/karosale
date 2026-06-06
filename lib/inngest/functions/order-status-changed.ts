@@ -103,7 +103,11 @@ export const orderStatusChangedFunction = inngest.createFunction(
           referenceId: orderId,
           referenceType: "order",
           description: `Earned from order ${order.orderNumber}`,
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         });
+
+        const { syncUserKarmaTierFromPoints } = await import("@/lib/loyalty");
+        await syncUserKarmaTierFromPoints(user.id);
 
         await db
           .update(orders)

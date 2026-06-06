@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { categories, productImages, products } from "@/lib/db/schema";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,10 @@ async function getHomeData() {
 }
 
 export default async function HomePage() {
+  const session = await auth();
   const { cats, bestsellers } = await getHomeData();
+
+  const firstName = session?.user?.name?.split(/\s+/)[0];
 
   return (
     <>
@@ -60,6 +64,11 @@ export default async function HomePage() {
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+          {firstName && (
+            <p className="text-lg font-medium text-primary">
+              Welcome back, {firstName}! 🌿
+            </p>
+          )}
           <p className="text-sm font-medium uppercase tracking-widest text-primary">
             Smart Commerce. Seamless Experience.
           </p>

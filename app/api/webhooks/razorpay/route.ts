@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
 import { verifyWebhookSignature } from "@/lib/razorpay";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import { applyKarmaRedemptionForPaidOrder } from "@/lib/loyalty";
 
 export async function POST(request: Request) {
   try {
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
         .limit(1);
 
       if (order) {
+        if (order.paymentStatus === "captured") {
+          return new Response("OK", { status: 200 });
+        }
+
         await db
           .update(orders)
           .set({
@@ -42,8 +47,15 @@ export async function POST(request: Request) {
           })
           .where(eq(orders.id, order.id));
 
+        await applyKarmaRedemptionForPaidOrder(order.id);
+
         await inngest.send({
           name: INNGEST_EVENTS.ORDER_PLACED,
+          data: { orderId: order.id },
+        });
+
+        await inngest.send({
+          name: INNGEST_EVENTS.ORDER_PAYMENT_CAPTURED,
           data: { orderId: order.id },
         });
       }
