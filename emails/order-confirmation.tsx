@@ -15,7 +15,7 @@ export interface OrderConfirmationEmailProps {
 export function OrderConfirmationEmail(props: OrderConfirmationEmailProps) {
   return (
     <EmailLayout preview={`Order ${props.orderNumber} confirmed`}>
-      <h2 style={{ margin: "0 0 8px", color: "#1B4332" }}>Thank you for your order! 🌿</h2>
+      <h2 style={{ margin: "0 0 8px", color: "#1e4d3a" }}>Thank you for your order! 🌿</h2>
       <p style={{ margin: "0 0 16px", color: "#5C6B62" }}>
         Hi {props.customerName}, we&apos;ve received your order.
       </p>
@@ -47,7 +47,7 @@ export function OrderConfirmationEmail(props: OrderConfirmationEmailProps) {
         Subtotal: ₹{props.subtotal}
         {parseFloat(props.discount) > 0 && <> · Discount: -₹{props.discount}</>}
       </p>
-      <p style={{ fontSize: "18px", fontWeight: 700, color: "#1B4332" }}>Total: ₹{props.total}</p>
+      <p style={{ fontSize: "18px", fontWeight: 700, color: "#1e4d3a" }}>Total: ₹{props.total}</p>
       <p style={{ marginTop: "16px", fontSize: "14px" }}>
         <strong>Deliver to:</strong>
         <br />
@@ -58,7 +58,7 @@ export function OrderConfirmationEmail(props: OrderConfirmationEmailProps) {
         style={{
           display: "inline-block",
           marginTop: "20px",
-          backgroundColor: "#1B4332",
+          backgroundColor: "#1e4d3a",
           color: "#ffffff",
           padding: "12px 24px",
           borderRadius: "8px",

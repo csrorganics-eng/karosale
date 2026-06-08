@@ -8,6 +8,7 @@ import { BackToHome } from "@/components/storefront/BackToHome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { describeAuthCallbackError } from "@/lib/auth-errors";
 
 function AccountPageContent() {
   const { data: session, status, update } = useSession();
@@ -15,22 +16,34 @@ function AccountPageContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect");
 
-  const [email, setEmail] = useState("qa.tester@karosale.com");
+  const [email, setEmail] = useState("qa.tester@csrorganics.com");
   const [password, setPassword] = useState("QATester@123");
   const [magicEmail, setMagicEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicBusy, setMagicBusy] = useState(false);
+
+  const showGoogleSignIn =
+    process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED === "true";
+
+  useEffect(() => {
+    const errCode = searchParams.get("error");
+    const described = describeAuthCallbackError(errCode);
+    if (described) setError(described);
+  }, [searchParams]);
 
   useEffect(() => {
     if (session?.user) {
       void fetch("/api/referral/claim", { method: "POST" }).catch(() => undefined);
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- claim once per user id
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const normalized = email.trim().toLowerCase();
     const result = await signIn("credentials", {
-      email,
+      email: normalized,
       password,
       redirect: false,
     });
@@ -117,6 +130,7 @@ function AccountPageContent() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1"
                 required
+                autoComplete="email"
               />
             </div>
             <div>
@@ -127,45 +141,81 @@ function AccountPageContent() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1"
                 required
+                autoComplete="current-password"
               />
             </div>
             {error && <p className="text-sm text-error">{error}</p>}
             <Button type="submit" className="w-full">
               Sign In
             </Button>
-            <div className="relative my-4 text-center text-xs text-text-secondary">
-              <span className="bg-surface px-2">or</span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => signIn("google", { callbackUrl: redirectTo ?? "/" })}
-            >
-              Continue with Google
-            </Button>
-            <div className="mt-4 space-y-2">
+            {showGoogleSignIn && (
+              <>
+                <div className="relative my-4 text-center text-xs text-text-secondary">
+                  <span className="bg-surface px-2">or</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setError(null);
+                    void signIn("google", { callbackUrl: redirectTo ?? "/" });
+                  }}
+                >
+                  Continue with Google
+                </Button>
+              </>
+            )}
+            <div className={`space-y-2 ${showGoogleSignIn ? "mt-4" : "mt-6"}`}>
               <Input
                 type="email"
                 placeholder="Email for magic link"
                 value={magicEmail}
                 onChange={(e) => setMagicEmail(e.target.value)}
+                autoComplete="email"
               />
               <Button
                 type="button"
                 variant="secondary"
                 className="w-full"
+                disabled={magicBusy}
                 onClick={async () => {
-                  if (!magicEmail.trim()) return;
-                  await signIn("email", { email: magicEmail.trim(), callbackUrl: redirectTo ?? "/" });
+                  const addr = magicEmail.trim().toLowerCase();
+                  if (!addr) return;
+                  setMagicBusy(true);
+                  setError(null);
+                  setMagicSent(false);
+                  try {
+                    const res = await signIn("email", {
+                      email: addr,
+                      callbackUrl: redirectTo ?? "/",
+                      redirect: false,
+                    });
+                    if (res?.error) {
+                      setError(
+                        res.error === "EmailSignin"
+                          ? describeAuthCallbackError("EmailSignin")
+                          : res.error,
+                      );
+                      return;
+                    }
+                    setMagicSent(true);
+                  } finally {
+                    setMagicBusy(false);
+                  }
                 }}
               >
-                Email me a sign-in link
+                {magicBusy ? "Sending…" : "Email me a sign-in link"}
               </Button>
+              {magicSent && (
+                <p className="text-sm text-success">
+                  Check your inbox for a sign-in link. It may take a minute to arrive.
+                </p>
+              )}
             </div>
           </form>
           <p className="mt-4 text-center text-xs text-text-secondary">
-            QA admin: admin.qa@karosale.com / AdminQA@123
+            QA admin: admin.qa@csrorganics.com / AdminQA@123
           </p>
         </CardContent>
       </Card>

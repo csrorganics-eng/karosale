@@ -15,7 +15,7 @@ export function LowStockAdminEmail(props: {
       <p>
         Current stock: {props.stockQty} (threshold: {props.threshold})
       </p>
-      <a href={props.inventoryUrl} style={{ color: "#1B4332" }}>
+      <a href={props.inventoryUrl} style={{ color: "#1e4d3a" }}>
         Open inventory →
       </a>
     </EmailLayout>

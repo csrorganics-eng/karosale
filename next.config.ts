@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "karosale.com" },
       { protocol: "https", hostname: "media.karosale.com" },
+      { protocol: "https", hostname: "csrorganics.com" },
+      { protocol: "https", hostname: "media.csrorganics.com" },
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
       { protocol: "https", hostname: "*.r2.dev" },
       { protocol: "https", hostname: "*.cloudflarestorage.com" },

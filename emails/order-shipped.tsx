@@ -9,7 +9,7 @@ export function OrderShippedEmail(props: {
 }) {
   return (
     <EmailLayout preview={`Order ${props.orderNumber} shipped`}>
-      <h2 style={{ margin: "0 0 8px", color: "#1B4332" }}>Your order is on the way! 🚚</h2>
+      <h2 style={{ margin: "0 0 8px", color: "#1e4d3a" }}>Your order is on the way! 🚚</h2>
       <p>
         Order <strong>{props.orderNumber}</strong> has been shipped via {props.courier}.
       </p>
@@ -22,7 +22,7 @@ export function OrderShippedEmail(props: {
         style={{
           display: "inline-block",
           marginTop: "16px",
-          backgroundColor: "#1B4332",
+          backgroundColor: "#1e4d3a",
           color: "#fff",
           padding: "12px 24px",
           borderRadius: "8px",

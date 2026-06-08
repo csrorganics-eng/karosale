@@ -85,12 +85,12 @@ export default function OrderDetailPage() {
         {new Date(order.createdAt).toLocaleString("en-IN")} · {formatINR(parseFloat(order.total))}
       </p>
 
-      <div className="mt-6 rounded-[14px] border border-border bg-surface p-4">
+      <div className="mt-6 rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
         <h2 className="font-semibold">Order status</h2>
         <OrderStatusTimeline status={order.status} />
       </div>
 
-      <div className="mt-4 rounded-[14px] border border-border bg-surface p-4">
+      <div className="mt-4 rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
         <h2 className="font-semibold">Items</h2>
         <ul className="mt-2 space-y-2 text-sm">
           {items.map((item, i) => (
@@ -105,7 +105,7 @@ export default function OrderDetailPage() {
       </div>
 
       {address && (
-        <div className="mt-4 rounded-[14px] border border-border bg-surface p-4 text-sm">
+        <div className="mt-4 rounded-[length:var(--radius-card)] border border-border bg-surface p-4 text-sm">
           <h2 className="font-semibold">Delivery address</h2>
           <p className="mt-1 text-text-secondary">
             {address.line1}, {address.city}, {address.state} - {address.pincode}
@@ -131,7 +131,7 @@ export default function OrderDetailPage() {
       </div>
 
       {showReview && order.status === "delivered" && (
-        <div className="mt-8 rounded-[14px] border border-border bg-accent-soft p-4">
+        <div className="mt-8 rounded-[length:var(--radius-card)] border border-border bg-accent-soft p-4">
           <h2 className="font-semibold">Write a review</h2>
           <div className="mt-3 space-y-3">
             <Input

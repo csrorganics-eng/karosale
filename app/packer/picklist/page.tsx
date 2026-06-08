@@ -54,7 +54,7 @@ export default function PackerPicklistPage() {
         {items.map((item) => (
           <div
             key={item.id}
-            className={`rounded-[14px] border p-4 ${item.isCompleted ? "border-success bg-accent-soft" : "border-border bg-surface"}`}
+            className={`rounded-[length:var(--radius-card)] border p-4 ${item.isCompleted ? "border-success bg-accent-soft" : "border-border bg-surface"}`}
           >
             <p className="text-lg font-semibold">{item.productName}</p>
             <p className="font-mono text-sm text-text-secondary">SKU: {item.productSku}</p>

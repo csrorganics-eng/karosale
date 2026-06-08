@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://karosale.com";
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://csrorganics.com";
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },

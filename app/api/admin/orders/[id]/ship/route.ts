@@ -37,7 +37,7 @@ export async function POST(
       billing_pincode: address.pincode,
       billing_state: address.state,
       billing_country: "India",
-      billing_email: customer?.email ?? "orders@karosale.com",
+      billing_email: customer?.email ?? "orders@csrorganics.com",
       billing_phone: address.phone,
       shipping_is_billing: true,
       order_items: items.map((i) => ({

@@ -48,7 +48,7 @@ export default async function ProductDetailPage({
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-[14px] border border-border bg-surface-subtle">
+        <div className="relative aspect-square overflow-hidden rounded-[length:var(--radius-card)] border border-border bg-surface-subtle">
           {primaryImage?.url ? (
             <Image
               src={primaryImage.url}

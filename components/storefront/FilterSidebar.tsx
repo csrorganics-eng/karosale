@@ -24,7 +24,7 @@ export function FilterSidebar() {
   }
 
   return (
-    <aside className="space-y-6 rounded-[14px] border border-border bg-surface p-4">
+    <aside className="space-y-6 rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
       <div>
         <h3 className="text-sm font-semibold">Sort</h3>
         <select

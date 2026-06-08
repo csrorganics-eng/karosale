@@ -6,7 +6,7 @@ export function OrderDeliveredEmail(props: {
 }) {
   return (
     <EmailLayout preview="Your order was delivered">
-      <h2 style={{ margin: "0 0 8px", color: "#1B4332" }}>
+      <h2 style={{ margin: "0 0 8px", color: "#1e4d3a" }}>
         Delivered! Enjoy your organic products 🌿
       </h2>
       <p>Order {props.orderNumber} has been delivered. How was your experience?</p>
@@ -17,7 +17,7 @@ export function OrderDeliveredEmail(props: {
         style={{
           display: "inline-block",
           marginTop: "16px",
-          backgroundColor: "#1B4332",
+          backgroundColor: "#1e4d3a",
           color: "#fff",
           padding: "12px 24px",
           borderRadius: "8px",

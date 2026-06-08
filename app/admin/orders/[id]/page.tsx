@@ -94,7 +94,7 @@ export default function AdminOrderDetailPage() {
         </Button>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-[14px] border border-border bg-surface p-4">
+      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
         <div>
           <label className="text-sm font-medium">Update status</label>
           <select
@@ -112,7 +112,7 @@ export default function AdminOrderDetailPage() {
         <Button onClick={updateStatus}>Save status</Button>
       </div>
 
-      <div className="mt-6 rounded-[14px] border border-border bg-surface p-4">
+      <div className="mt-6 rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
         <h2 className="font-semibold">Items</h2>
         <ul className="mt-2 space-y-1 text-sm">
           {items?.map((item, i) => (

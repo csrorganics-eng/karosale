@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         .values({
           phone: clean,
           name: parsed.data.name ?? "Customer",
-          email: `${clean}@phone.karosale.com`,
+          email: `${clean}@phone.csrorganics.com`,
           referralCode: generateReferralCode(),
           referredBy,
           emailVerified: new Date(),

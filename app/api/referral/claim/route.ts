@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { jsonOk, jsonError } from "@/lib/api-response";
 
-const COOKIE = "karosale_ref";
+const COOKIE = "csrorganics_ref";
 
 /**
  * Call after sign-in (credentials or OAuth). Sets referred_by from referral cookie once.

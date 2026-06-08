@@ -98,7 +98,7 @@ export default function CartPage() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex gap-4 rounded-[14px] border border-border bg-surface p-4"
+              className="flex gap-4 rounded-[length:var(--radius-card)] border border-border bg-surface p-4"
             >
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-surface-subtle">
                 {item.imageUrl ? (
@@ -138,7 +138,7 @@ export default function CartPage() {
           ))}
         </div>
 
-        <div className="h-fit rounded-[14px] border border-border bg-surface p-6 shadow-[var(--shadow-soft)] lg:sticky lg:top-24">
+        <div className="h-fit rounded-[length:var(--radius-card)] border border-border bg-surface p-6 shadow-[var(--shadow-soft)] lg:sticky lg:top-24">
           <h2 className="font-semibold">Order Summary</h2>
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between">

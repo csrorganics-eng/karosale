@@ -15,7 +15,7 @@ export function getBusinessProfile() {
     addressLine2: process.env.BUSINESS_ADDRESS_LINE2?.trim() || "Kochi, Kerala 682024",
     country: process.env.BUSINESS_ADDRESS_COUNTRY?.trim() || "India",
     /** Customer-facing marketplace name */
-    brandName: "Karosale",
+    brandName: "CSR Organics",
   };
 }
 

@@ -5,7 +5,7 @@ import { Heart } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const GUEST_KEY = "karosale_guest_wishlist";
+const GUEST_KEY = "csrorganics_guest_wishlist";
 
 function readGuest(): string[] {
   if (typeof window === "undefined") return [];

@@ -44,10 +44,14 @@ export function CartDrawer({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} aria-hidden />
-      <aside className="fixed top-0 right-0 z-50 flex h-full w-full max-w-md flex-col bg-surface shadow-xl md:max-w-sm">
-        <div className="flex items-center justify-between border-b border-border p-4">
-          <h2 className="font-display text-lg font-bold">Your cart</h2>
+      <div
+        className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[2px] transition-opacity duration-300 ease-premium"
+        onClick={onClose}
+        aria-hidden
+      />
+      <aside className="fixed top-0 right-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border/60 bg-surface shadow-[var(--shadow-float)] md:max-w-sm">
+        <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
+          <h2 className="font-display text-lg font-semibold tracking-tight">Your cart</h2>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
           </Button>
@@ -68,7 +72,7 @@ export function CartDrawer({
             </ul>
           )}
         </div>
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border/60 p-5">
           <p className="flex justify-between font-semibold">
             <span>Subtotal</span>
             <span>{formatINR(subtotal)}</span>

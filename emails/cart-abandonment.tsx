@@ -7,7 +7,7 @@ export function CartAbandonmentEmail(props: {
 }) {
   return (
     <EmailLayout preview="You left something behind">
-      <h2 style={{ margin: "0 0 8px", color: "#1B4332" }}>You left something behind 🌱</h2>
+      <h2 style={{ margin: "0 0 8px", color: "#1e4d3a" }}>You left something behind 🌱</h2>
       <ul style={{ paddingLeft: "20px" }}>
         {props.items.map((item, i) => (
           <li key={i}>
@@ -25,7 +25,7 @@ export function CartAbandonmentEmail(props: {
         style={{
           display: "inline-block",
           marginTop: "16px",
-          backgroundColor: "#1B4332",
+          backgroundColor: "#1e4d3a",
           color: "#fff",
           padding: "12px 24px",
           borderRadius: "8px",

@@ -39,7 +39,7 @@ export default function AdminInventoryPage() {
   return (
     <div>
       <h1 className="font-display text-2xl font-bold">Inventory</h1>
-      <div className="mt-6 overflow-x-auto rounded-[14px] border border-border bg-surface">
+      <div className="mt-6 overflow-x-auto rounded-[length:var(--radius-card)] border border-border bg-surface">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-subtle text-left text-text-secondary">

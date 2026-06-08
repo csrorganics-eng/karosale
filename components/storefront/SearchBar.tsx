@@ -51,12 +51,12 @@ export function SearchBar({ className }: { className?: string }) {
         />
       </div>
       {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-[14px] border border-border bg-surface shadow-[var(--shadow-soft)]">
+        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-[length:var(--radius-card)] border border-border/80 bg-surface shadow-[var(--shadow-float)] ring-1 ring-black/[0.03]">
           {results.map((p) => (
             <Link
               key={p.id}
               href={`/shop/${p.slug}`}
-              className="flex items-center gap-3 border-b border-border/50 px-4 py-3 last:border-0 hover:bg-accent-soft"
+              className="flex items-center gap-3 border-b border-border/50 px-4 py-3 last:border-0 transition-colors duration-200 ease-premium hover:bg-accent-soft"
             >
               <span className="flex-1 text-sm font-medium">{p.name}</span>
               <span className="text-sm text-primary">{formatINR(parseFloat(p.price))}</span>

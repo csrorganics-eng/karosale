@@ -7,7 +7,7 @@ import { findOrCreateCart, getCartWithItems } from "@/lib/db/queries/cart";
 import { addToCartSchema } from "@/lib/validations/cart";
 import { jsonOk, jsonError } from "@/lib/api-response";
 
-const CART_COOKIE = "karosale_cart_session";
+const CART_COOKIE = "csrorganics_cart_session";
 
 async function resolveCart() {
   const session = await auth();

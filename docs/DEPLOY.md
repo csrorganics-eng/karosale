@@ -1,4 +1,4 @@
-# Karosale — Deploy to Vercel + Neon
+# CSR Organics — Deploy to Vercel + Neon
 
 ## Security first
 
@@ -24,9 +24,9 @@ Your Neon database now has all tables + QA users + 10 products.
 ```bash
 git init
 git add .
-git commit -m "Karosale Phase 1 foundation"
+git commit -m "CSR Organics Phase 1 foundation"
 git branch -M main
-git remote add origin https://github.com/YOUR_ORG/karosale.git
+git remote add origin https://github.com/YOUR_ORG/csrorganics.git
 git push -u origin main
 ```
 
@@ -61,7 +61,7 @@ If you connect manually, use the **pooled** connection string (host contains `-p
 |----------|-------------|---------|--------|
 | `DATABASE_URL` | Neon main branch pooled | Neon preview branch pooled | From Neon or Vercel integration |
 | `NEXTAUTH_SECRET` | Random 32+ chars | Same or separate | `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | `https://karosale.com` | `https://YOUR-preview.vercel.app` | Must match deployed URL |
+| `NEXTAUTH_URL` | `https://csrorganics.com` | `https://YOUR-preview.vercel.app` | Must match deployed URL |
 | `NEXT_PUBLIC_APP_URL` | Production URL | Preview URL | |
 | `NEXT_PUBLIC_IS_PREVIEW` | `false` | `true` | Shows test banner |
 | `RAZORPAY_KEY_ID` | Live | `rzp_test_*` | |
@@ -117,12 +117,12 @@ Never set `SEED_DATABASE=true` on Production.
 
 ---
 
-## 7. Custom domain (karosale.com)
+## 7. Custom domain (csrorganics.com)
 
 1. Vercel → Project → **Settings** → **Domains**
-2. Add `karosale.com` and `www.karosale.com`
+2. Add `csrorganics.com` and `www.csrorganics.com`
 3. Update DNS at your registrar per Vercel instructions
-4. Update `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to `https://karosale.com`
+4. Update `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to `https://csrorganics.com`
 5. Redeploy
 
 ---

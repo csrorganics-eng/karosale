@@ -17,7 +17,7 @@ type Item = {
   imageUrl: string | null;
 };
 
-const GUEST_KEY = "karosale_guest_wishlist";
+const GUEST_KEY = "csrorganics_guest_wishlist";
 
 export default function WishlistPage() {
   const { status } = useSession();
@@ -101,7 +101,7 @@ export default function WishlistPage() {
       ) : (
         <ul className="mt-8 grid gap-6 sm:grid-cols-2">
           {items.map((i) => (
-            <li key={i.id} className="flex gap-4 rounded-[14px] border border-border bg-surface p-4">
+            <li key={i.id} className="flex gap-4 rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
               {i.imageUrl && i.slug ? (
                 <Link href={`/shop/${i.slug}`} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg">
                   <Image src={i.imageUrl} alt="" fill className="object-cover" sizes="96px" />

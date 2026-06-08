@@ -1,4 +1,4 @@
-# Karosale — QA Checklist (Phase 1)
+# CSR Organics — QA Checklist (Phase 1)
 
 **Tester:** _______________  
 **Date:** _______________  
@@ -14,7 +14,7 @@ Describe: page → what you clicked → what happened → what should happen →
 
 | # | Test | Pass / Fail |
 |---|------|-------------|
-| 1.1 | Open preview URL. You see green Karosale branding and hero text "Nature's Best, Delivered Fresh". | |
+| 1.1 | Open preview URL. You see green CSR Organics branding and hero text "Nature's Best, Delivered Fresh". | |
 | 1.2 | Categories section shows 6 category cards (after seed). | |
 | 1.3 | On phone, page is readable; buttons are easy to tap. | |
 
@@ -31,7 +31,7 @@ Describe: page → what you clicked → what happened → what should happen →
 | # | Test | Pass / Fail |
 |---|------|-------------|
 | 3.1 | Add product to cart. Cart page shows the item. | |
-| 3.2 | Sign in: qa.tester@karosale.com / QATester@123 | |
+| 3.2 | Sign in: qa.tester@csrorganics.com / QATester@123 | |
 | 3.3 | Checkout shows saved address or lets you add one. | |
 | 3.4 | COD order completes and success page shows order number. | |
 | 3.5 | Coupon SAVE10 applies on cart (min ₹299). | |
@@ -40,7 +40,7 @@ Describe: page → what you clicked → what happened → what should happen →
 
 | # | Test | Pass / Fail |
 |---|------|-------------|
-| 4.1 | Sign in admin.qa@karosale.com / AdminQA@123 → Admin Dashboard. | |
+| 4.1 | Sign in admin.qa@csrorganics.com / AdminQA@123 → Admin Dashboard. | |
 | 4.2 | Dashboard shows today's stats and recent orders. | |
 | 4.3 | Orders list loads. | |
 | 4.4 | Products list shows seeded products. | |

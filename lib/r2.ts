@@ -27,7 +27,7 @@ export async function uploadToR2(params: {
   body: Buffer | Uint8Array;
   contentType: string;
 }): Promise<string> {
-  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME ?? "karosale-media";
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME ?? "csrorganics-media";
   const client = getR2Client();
 
   await client.send(

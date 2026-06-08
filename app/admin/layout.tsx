@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { BRAND_LOGO_PATH, BRAND_NAME } from "@/lib/brand";
 import {
   LayoutDashboard,
   Package,
@@ -30,8 +32,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen">
       <aside className="hidden w-60 shrink-0 flex-col bg-[var(--admin-sidebar)] text-white md:flex">
         <div className="border-b border-white/10 p-6">
-          <Link href="/admin/dashboard" className="font-display text-xl font-bold">
-            Karosale
+          <Link href="/admin/dashboard" className="flex items-center gap-2" title={BRAND_NAME}>
+            <Image
+              src={BRAND_LOGO_PATH}
+              alt={BRAND_NAME}
+              width={140}
+              height={40}
+              className="h-8 w-auto max-w-[140px] object-contain object-left brightness-0 invert"
+            />
           </Link>
           <p className="mt-1 text-xs text-white/60">Admin</p>
         </div>
@@ -55,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
       <div className="flex flex-1 flex-col">
         <header className="flex h-14 items-center border-b border-border bg-surface px-6">
-          <p className="text-sm font-medium text-text-secondary md:hidden">Karosale Admin</p>
+          <p className="text-sm font-medium text-text-secondary md:hidden">{BRAND_NAME} Admin</p>
         </header>
         <main className="flex-1 bg-background p-6">{children}</main>
       </div>

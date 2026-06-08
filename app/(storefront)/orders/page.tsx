@@ -32,7 +32,7 @@ export default function OrdersPage() {
           <Link
             key={o.id}
             href={`/orders/${o.id}`}
-            className="block rounded-[14px] border border-border bg-surface p-4 hover:shadow-[var(--shadow-soft)]"
+            className="block rounded-[length:var(--radius-card)] border border-border bg-surface p-4 hover:shadow-[var(--shadow-soft)]"
           >
             <div className="flex items-center justify-between">
               <span className="font-mono font-medium">{o.orderNumber}</span>

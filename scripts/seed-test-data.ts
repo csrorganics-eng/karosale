@@ -1,9 +1,10 @@
 /**
  * Idempotent seed for local dev and Vercel preview.
- * Run: pnpm seed (requires DATABASE_URL)
+ * Run: npm run seed (loads `.env.local` / `.env` automatically; requires DATABASE_URL)
  */
+import "./load-env-files";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, or, inArray } from "drizzle-orm";
 import { db } from "../lib/db/index";
 import {
   categories,
@@ -22,13 +23,13 @@ const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=400&fit=crop";
 
 async function main() {
-  console.log("🌿 Seeding Karosale test data...");
+  console.log("🌿 Seeding CSR Organics test data...");
 
   const tiers = [
     { name: "Seedling", minPoints: 0, maxPoints: 499, discountPct: "0", badgeLabel: "Seedling", badgeColor: "#A8D5BA" },
     { name: "Grower", minPoints: 500, maxPoints: 1999, discountPct: "3", badgeLabel: "Grower", badgeColor: "#6FAF8F" },
-    { name: "Harvester", minPoints: 2000, maxPoints: 4999, discountPct: "5", badgeLabel: "Harvester", badgeColor: "#1B4332" },
-    { name: "Master Farmer", minPoints: 5000, maxPoints: null, discountPct: "8", badgeLabel: "Master Farmer", badgeColor: "#1B4332" },
+    { name: "Harvester", minPoints: 2000, maxPoints: 4999, discountPct: "5", badgeLabel: "Harvester", badgeColor: "#1e4d3a" },
+    { name: "Master Farmer", minPoints: 5000, maxPoints: null, discountPct: "8", badgeLabel: "Master Farmer", badgeColor: "#1e4d3a" },
   ];
 
   for (const tier of tiers) {
@@ -51,6 +52,72 @@ async function main() {
   const passwordHash = await bcrypt.hash("QATester@123", 10);
   const adminHash = await bcrypt.hash("AdminQA@123", 10);
   const packerHash = await bcrypt.hash("PackerQA@123", 10);
+
+  /** Keep QA logins working after email domain changes — match referral code or legacy/new email. */
+  async function syncQaUser(opts: {
+    email: string;
+    matchEmails: string[];
+    referralCode: string;
+    passwordHash: string;
+    name: string;
+    phone: string;
+    role: "customer" | "admin" | "packer";
+    karmaPoints?: number;
+    karmaTier?: "seedling" | "grower" | "harvester" | "master_farmer";
+  }) {
+    await db
+      .update(users)
+      .set({
+        email: opts.email,
+        passwordHash: opts.passwordHash,
+        name: opts.name,
+        phone: opts.phone,
+        role: opts.role,
+        isActive: true,
+        emailVerified: new Date(),
+        updatedAt: new Date(),
+        ...(opts.karmaPoints != null ? { karmaPoints: opts.karmaPoints } : {}),
+        ...(opts.karmaTier ? { karmaTier: opts.karmaTier } : {}),
+      })
+      .where(
+        or(
+          eq(users.referralCode, opts.referralCode),
+          inArray(users.email, opts.matchEmails),
+        ),
+      );
+  }
+
+  await syncQaUser({
+    email: "qa.tester@csrorganics.com",
+    matchEmails: ["qa.tester@karosale.com", "qa.tester@csrorganics.com"],
+    referralCode: "QA0001",
+    passwordHash,
+    name: "QA Tester",
+    phone: "9999999901",
+    role: "customer",
+    karmaPoints: 250,
+    karmaTier: "grower",
+  });
+
+  await syncQaUser({
+    email: "admin.qa@csrorganics.com",
+    matchEmails: ["admin.qa@karosale.com", "admin.qa@csrorganics.com"],
+    referralCode: "ADM001",
+    passwordHash: adminHash,
+    name: "QA Admin",
+    phone: "9999999902",
+    role: "admin",
+  });
+
+  await syncQaUser({
+    email: "packer.qa@csrorganics.com",
+    matchEmails: ["packer.qa@karosale.com", "packer.qa@csrorganics.com"],
+    referralCode: "PCK001",
+    passwordHash: packerHash,
+    name: "QA Packer",
+    phone: "9999999903",
+    role: "packer",
+  });
 
   async function upsertUser(data: {
     email: string;
@@ -82,7 +149,7 @@ async function main() {
   }
 
   const qaCustomer = await upsertUser({
-    email: "qa.tester@karosale.com",
+    email: "qa.tester@csrorganics.com",
     name: "QA Tester",
     phone: "9999999901",
     role: "customer",
@@ -93,7 +160,7 @@ async function main() {
   });
 
   await upsertUser({
-    email: "admin.qa@karosale.com",
+    email: "admin.qa@csrorganics.com",
     name: "QA Admin",
     phone: "9999999902",
     role: "admin",
@@ -102,7 +169,7 @@ async function main() {
   });
 
   await upsertUser({
-    email: "packer.qa@karosale.com",
+    email: "packer.qa@csrorganics.com",
     name: "QA Packer",
     phone: "9999999903",
     role: "packer",
@@ -302,9 +369,9 @@ async function main() {
   }
 
   console.log(`✅ Seeded loyalty tiers, users, ${productCount} new products, ${ordersCreated} orders, coupons`);
-  console.log("   Customer: qa.tester@karosale.com / QATester@123");
-  console.log("   Admin:    admin.qa@karosale.com / AdminQA@123");
-  console.log("   Packer:   packer.qa@karosale.com / PackerQA@123");
+  console.log("   Customer: qa.tester@csrorganics.com / QATester@123");
+  console.log("   Admin:    admin.qa@csrorganics.com / AdminQA@123");
+  console.log("   Packer:   packer.qa@csrorganics.com / PackerQA@123");
 }
 
 main()

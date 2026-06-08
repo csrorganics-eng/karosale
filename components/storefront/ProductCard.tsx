@@ -52,7 +52,7 @@ export function ProductCard({
         : { text: "In Stock", variant: "success" as const };
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-[14px] border border-border bg-surface shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-medium)]">
+    <article className="group flex flex-col overflow-hidden rounded-[length:var(--radius-card)] border border-border/80 bg-surface shadow-[var(--shadow-soft)] transition-[box-shadow,transform] duration-300 ease-premium hover:-translate-y-0.5 hover:shadow-[var(--shadow-medium)]">
       <div className="relative aspect-square overflow-hidden bg-surface-subtle">
         <Link href={`/shop/${slug}`} className="absolute inset-0 block">
           {imageUrl ? (
@@ -60,7 +60,7 @@ export function ProductCard({
               src={imageUrl}
               alt={name}
               fill
-              className="object-cover transition-transform duration-320 group-hover:scale-105"
+              className="object-cover transition-transform duration-500 ease-premium group-hover:scale-[1.04]"
               sizes="(max-width: 768px) 50vw, 25vw"
             />
           ) : (

@@ -2,3 +2,6 @@ Karosale
 RazoyPay
 Key ID: rzp_test_Srtzad38MS07H3
 Key Secret: GZ7Xb6MgJwm1upIUJlBEtO7N
+
+neondb password:
+npg_GiSb8NZPluk0

@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { BRAND_NAME } from "@/lib/brand";
 
 let resendClient: Resend | null = null;
 
@@ -17,9 +18,9 @@ export async function sendEmail(params: {
   html: string;
 }) {
   const resend = getResend();
-  const from = process.env.RESEND_FROM_EMAIL ?? "orders@karosale.com";
+  const from = process.env.RESEND_FROM_EMAIL ?? "orders@csrorganics.com";
   return resend.emails.send({
-    from: `Karosale <${from}>`,
+    from: `${BRAND_NAME} <${from}>`,
     to: params.to,
     subject: params.subject,
     html: params.html,

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, ShoppingCart, User, X } from "lucide-react";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/storefront/SearchBar";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { cn } from "@/lib/utils";
+import { BRAND_LOGO_PATH, BRAND_NAME } from "@/lib/brand";
 
 const navLinks = [
   { href: "/shop", label: "Shop" },
@@ -30,13 +32,22 @@ export function Header() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 transition-all duration-300",
-        scrolled ? "bg-surface/95 shadow-[var(--shadow-soft)] backdrop-blur-md" : "bg-transparent",
+        "sticky top-0 z-50 transition-[background-color,box-shadow,border-color] duration-300 ease-premium",
+        scrolled
+          ? "border-b border-border/50 bg-surface/88 shadow-[var(--shadow-soft)] backdrop-blur-xl backdrop-saturate-150"
+          : "border-b border-transparent bg-transparent",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="font-display text-2xl font-bold text-primary">
-          Karosale
+      <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2" title={BRAND_NAME}>
+          <Image
+            src={BRAND_LOGO_PATH}
+            alt={BRAND_NAME}
+            width={160}
+            height={44}
+            className="h-9 w-auto max-w-[160px] object-contain object-left"
+            priority
+          />
         </Link>
 
         <div className="hidden max-w-xs flex-1 px-4 md:block">
@@ -48,7 +59,7 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-text-secondary transition-colors hover:text-primary"
+              className="text-sm font-medium text-text-secondary transition-colors duration-200 ease-premium hover:text-primary"
             >
               {link.label}
             </Link>
@@ -79,7 +90,7 @@ export function Header() {
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
 
       {mobileOpen && (
-        <nav className="border-t border-border bg-surface px-4 py-4 md:hidden">
+        <nav className="border-t border-border/60 bg-surface/98 px-4 py-4 backdrop-blur-md md:hidden">
           {navLinks.map((link) => (
             <Link
               key={link.href}

@@ -24,7 +24,7 @@ const emptyForm = {
   discountPct: "0",
   freeShippingOn: "",
   badgeLabel: "",
-  badgeColor: "#1B4332",
+  badgeColor: "#1e4d3a",
 };
 
 export default function AdminKarmaRewardsPage() {
@@ -118,7 +118,7 @@ export default function AdminKarmaRewardsPage() {
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
         <form
           onSubmit={submit}
-          className="rounded-[14px] border border-border bg-surface p-6 space-y-4"
+          className="rounded-[length:var(--radius-card)] border border-border bg-surface p-6 space-y-4"
         >
           <h2 className="font-semibold">{editingId ? "Edit tier" : "Add new tier"}</h2>
           <div>
@@ -205,7 +205,7 @@ export default function AdminKarmaRewardsPage() {
           </div>
         </form>
 
-        <div className="rounded-[14px] border border-border bg-surface overflow-hidden">
+        <div className="rounded-[length:var(--radius-card)] border border-border bg-surface overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-subtle text-left text-text-secondary">

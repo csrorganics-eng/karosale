@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BRAND_NAME, getBrandLogoAbsoluteUrl } from "@/lib/brand";
 
 export function EmailLayout({
   children,
@@ -7,6 +8,7 @@ export function EmailLayout({
   children: ReactNode;
   preview?: string;
 }) {
+  const logoUrl = getBrandLogoAbsoluteUrl();
   return (
     <div
       style={{
@@ -28,13 +30,23 @@ export function EmailLayout({
       >
         <div
           style={{
-            backgroundColor: "#1B4332",
+            backgroundColor: "#1e4d3a",
             color: "#ffffff",
             padding: "24px",
             textAlign: "center",
           }}
         >
-          <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 700 }}>Karosale</h1>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={BRAND_NAME}
+              width={200}
+              height={56}
+              style={{ margin: "0 auto", maxWidth: "200px", height: "auto" }}
+            />
+          ) : (
+            <h1 style={{ margin: 0, fontSize: "24px", fontWeight: 700 }}>{BRAND_NAME}</h1>
+          )}
           <p style={{ margin: "8px 0 0", opacity: 0.9, fontSize: "13px" }}>
             Organic. Natural. Trusted.
           </p>
@@ -50,7 +62,7 @@ export function EmailLayout({
           }}
         >
           <p style={{ margin: 0 }}>Questions? Reply to this email or WhatsApp us.</p>
-          <p style={{ margin: "8px 0 0" }}>© Karosale · India</p>
+          <p style={{ margin: "8px 0 0" }}>© {BRAND_NAME} · India</p>
         </div>
       </div>
     </div>

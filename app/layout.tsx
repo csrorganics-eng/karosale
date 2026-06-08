@@ -5,8 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Karosale — Organic Products Marketplace",
-    template: "%s | Karosale",
+    default: "CSR Organics — Organic Products Marketplace",
+    template: "%s | CSR Organics",
   },
   description:
     "Certified organic seeds, fertilizers, groceries and garden essentials. Delivered across India.",

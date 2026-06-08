@@ -1,4 +1,4 @@
-# How to Release Karosale for QA Testing
+# How to Release CSR Organics for QA Testing
 
 For developers — about 5 minutes per release.
 
@@ -18,7 +18,7 @@ Vercel builds automatically (~3 minutes). Confirm a green check on GitHub.
 
 1. Open [vercel.com](https://vercel.com) → your project → **Deployments**
 2. Copy the **Preview** URL for your branch  
-   Example: `https://karosale-phase-1-abc123.vercel.app`
+   Example: `https://csrorganics-phase-1-abc123.vercel.app`
 
 Set preview env vars (see `.env.preview.example`). Run migrations on preview DB if needed:
 

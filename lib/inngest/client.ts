@@ -1,6 +1,6 @@
 import { Inngest } from "inngest";
 
-export const inngest = new Inngest({ id: "karosale" });
+export const inngest = new Inngest({ id: "csrorganics" });
 
 export const INNGEST_EVENTS = {
   ORDER_PLACED: "order/placed",

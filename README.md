@@ -1,4 +1,4 @@
-# Karosale
+# CSR Organics (csrorganics)
 
 Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle ORM, Vercel.
 
@@ -17,8 +17,15 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
    ```
    Fill at minimum:
    - `DATABASE_URL` — Neon pooled connection string
-   - `NEXTAUTH_SECRET` — `openssl rand -base64 32`
-   - `NEXTAUTH_URL` — `http://localhost:3000` (on Vercel, set to your deployment URL, e.g. `https://<project>.vercel.app`, same idea for `NEXT_PUBLIC_APP_URL`)
+   - `AUTH_SECRET` (or `NEXTAUTH_SECRET`) — `openssl rand -base64 32`
+   - `AUTH_URL` and `NEXTAUTH_URL` — `http://localhost:3000` (must match the URL you use in the browser; on Vercel use your deployment URL)
+   - `NEXT_PUBLIC_APP_URL` — same origin as above (used in magic-link emails for the logo)
+
+   **QA sign-in** (after `npm run seed`): `admin.qa@csrorganics.com` / `AdminQA@123` (admin), `qa.tester@csrorganics.com` / `QATester@123` (customer). If you previously seeded `@karosale.com` emails, run `npm run seed` again to migrate passwords and emails.
+
+   **Google OAuth:** set server-side `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (or `GOOGLE_CLIENT_*`). In Google Cloud Console add redirect URI `http://localhost:3000/api/auth/callback/google`. To show **Continue with Google** on the sign-in page, set `NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED=true` in `.env.local` (it stays hidden until then).
+
+   **Magic link:** set `RESEND_API_KEY` and a verified `RESEND_FROM_EMAIL` (or `onboarding@resend.dev` for Resend’s test domain). Requires `DATABASE_URL` so verification tokens can be stored.
 
 3. **Database**
    ```bash
@@ -26,6 +33,8 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
    npm run db:migrate
    npm run seed
    ```
+   `npm run seed` and `npm run db:migrate` load **`.env.local`** then **`.env`** automatically (same as you use for `npm run dev`). Ensure `DATABASE_URL` is set in one of those files.
+
    **Note:** Use the **pooled** URL in `.env.local` for the app. For `drizzle-kit push` only, use Neon’s **direct** (non-`-pooler`) URL from the console.
 
 4. **Run**
@@ -43,9 +52,9 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
 
 | Role     | Email                   | Password      |
 |----------|-------------------------|---------------|
-| Customer | qa.tester@karosale.com  | QATester@123  |
-| Admin    | admin.qa@karosale.com   | AdminQA@123   |
-| Packer   | packer.qa@karosale.com  | PackerQA@123  |
+| Customer | qa.tester@csrorganics.com  | QATester@123  |
+| Admin    | admin.qa@csrorganics.com   | AdminQA@123   |
+| Packer   | packer.qa@csrorganics.com  | PackerQA@123  |
 
 Coupons: `TESTSHIP`, `SAVE10`, `WELCOME50` (referral welcome)
 

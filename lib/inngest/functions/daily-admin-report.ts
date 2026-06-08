@@ -3,6 +3,7 @@ import { inngest } from "@/lib/inngest/client";
 import { db } from "@/lib/db";
 import { orders, products, users } from "@/lib/db/schema";
 import { sendWhatsAppMessage } from "@/lib/interakt";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const dailyAdminReportFunction = inngest.createFunction(
   { id: "daily-admin-report" },
@@ -58,7 +59,7 @@ export const dailyAdminReportFunction = inngest.createFunction(
           : "None";
 
       const message = [
-        "Karosale Daily Report",
+        `${BRAND_NAME} Daily Report`,
         `Orders: ${todayAgg?.orderCount ?? 0}`,
         `GMV: ₹${parseFloat(todayAgg?.gmv ?? "0").toFixed(0)}`,
         `Pending: ${pendingAgg?.count ?? 0}`,

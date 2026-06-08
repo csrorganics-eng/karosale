@@ -1,10 +1,10 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
+import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import Email from "next-auth/providers/email";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, getDb } from "@/lib/db";
 import {
   accounts,
@@ -13,37 +13,70 @@ import {
   verificationTokens,
 } from "@/lib/db/schema";
 import { sendEmail } from "@/lib/resend";
+import { BRAND_NAME } from "@/lib/brand";
+import { buildMagicLinkEmailHtml } from "@/lib/magic-link-email";
 
-const googleConfigured =
-  Boolean(process.env.GOOGLE_CLIENT_ID?.trim()) &&
-  Boolean(process.env.GOOGLE_CLIENT_SECRET?.trim());
+const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
+/** Auth.js v5 also reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET from env; we support legacy GOOGLE_* names. */
+const googleId =
+  process.env.AUTH_GOOGLE_ID?.trim() ||
+  process.env.GOOGLE_CLIENT_ID?.trim();
+const googleSecret =
+  process.env.AUTH_GOOGLE_SECRET?.trim() ||
+  process.env.GOOGLE_CLIENT_SECRET?.trim();
+
+const googleConfigured = Boolean(googleId && googleSecret);
 
 const emailMagicConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
+const databaseConfigured = Boolean(process.env.DATABASE_URL?.trim());
+/** Magic link requires Resend + DB adapter (verification tokens). */
+const magicLinkEnabled = emailMagicConfigured && databaseConfigured;
 
-const providers = [
+/**
+ * HTTP email provider (Resend) — avoids deprecated `Email()` / Nodemailer which
+ * requires a dummy SMTP `server` even when using custom send.
+ * @see https://authjs.dev/guides/configuring-http-email
+ */
+function resendMagicLinkProvider(): NextAuthConfig["providers"][number] {
+  const from =
+    process.env.RESEND_FROM_EMAIL?.trim() || "onboarding@resend.dev";
+
+  return {
+    id: "email",
+    type: "email",
+    name: "Email",
+    from,
+    maxAge: 60 * 60 * 24,
+    sendVerificationRequest: async ({ identifier, url }) => {
+      const host = new URL(url).host;
+      await sendEmail({
+        to: identifier,
+        subject: `Your ${BRAND_NAME} sign-in link`,
+        html: buildMagicLinkEmailHtml({ url, host }),
+      });
+    },
+  };
+}
+
+const providers: NextAuthConfig["providers"] = [
   ...(googleConfigured
     ? [
         Google({
-          clientId: process.env.GOOGLE_CLIENT_ID!,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          clientId: googleId!,
+          clientSecret: googleSecret!,
           allowDangerousEmailAccountLinking: true,
-        }),
-      ]
-    : []),
-  ...(emailMagicConfigured
-    ? [
-        Email({
-          from: process.env.RESEND_FROM_EMAIL ?? "orders@karosale.com",
-          sendVerificationRequest: async ({ identifier, url }) => {
-            await sendEmail({
-              to: identifier,
-              subject: "Your Karosale sign-in link",
-              html: `<p>Click to sign in (expires soon):</p><p><a href="${url}">Sign in to Karosale</a></p>`,
-            });
+          authorization: {
+            params: {
+              prompt: "select_account",
+              access_type: "offline",
+              response_type: "code",
+            },
           },
         }),
       ]
     : []),
+  ...(magicLinkEnabled ? [resendMagicLinkProvider()] : []),
   Credentials({
     id: "credentials",
     name: "Email",
@@ -52,14 +85,15 @@ const providers = [
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      const email = credentials?.email as string | undefined;
+      const raw = credentials?.email as string | undefined;
       const password = credentials?.password as string | undefined;
+      const email = raw?.trim().toLowerCase();
       if (!email || !password) return null;
 
       const [user] = await db
         .select()
         .from(users)
-        .where(eq(users.email, email))
+        .where(sql`lower(${users.email}) = ${email}`)
         .limit(1);
 
       if (!user?.passwordHash || !user.isActive) return null;
@@ -69,9 +103,9 @@ const providers = [
 
       return {
         id: user.id,
-        email: user.email,
-        name: user.name,
-        image: user.image,
+        email: user.email ?? undefined,
+        name: user.name ?? undefined,
+        image: user.image ?? undefined,
         role: user.role,
       };
     },
@@ -79,6 +113,7 @@ const providers = [
 ];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret,
   trustHost: true,
   adapter: process.env.DATABASE_URL?.trim()
     ? DrizzleAdapter(getDb(), {
@@ -96,8 +131,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.sub = user.id;
+        const uid = (user as { id?: string }).id ?? token.sub;
+        if (uid) {
+          token.id = uid;
+          token.sub = uid;
+        }
         token.role = (user as { role?: string }).role ?? "customer";
       }
 
@@ -115,7 +153,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        session.user.id = (token.id ?? token.sub) as string;
         session.user.role = (token.role as string) ?? "customer";
       }
       return session;

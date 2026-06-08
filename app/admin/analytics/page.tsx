@@ -41,7 +41,7 @@ export default function AdminAnalyticsPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[14px] border border-border bg-surface p-4">
+    <div className="rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
       <p className="text-xs text-text-secondary">{label}</p>
       <p className="mt-1 text-xl font-semibold">{value}</p>
     </div>

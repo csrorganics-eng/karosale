@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatINR } from "@/lib/utils";
+import { BRAND_NAME } from "@/lib/brand";
 
 interface Address {
   id: string;
@@ -143,7 +144,7 @@ export default function CheckoutPage() {
         key,
         amount,
         currency: "INR",
-        name: "Karosale",
+        name: BRAND_NAME,
         description: `Order ${order.orderNumber}`,
         order_id: razorpayOrderId,
         handler: async (response: {
