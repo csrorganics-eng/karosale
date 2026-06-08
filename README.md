@@ -35,6 +35,8 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
    ```
    `npm run seed` and `npm run db:migrate` load **`.env.local`** then **`.env`** automatically (same as you use for `npm run dev`). Ensure `DATABASE_URL` is set in one of those files.
 
+   **`db:migrate` is idempotent:** it records each `lib/db/migrations/*.sql` file in `_neon_sql_migrations`. Re-runs skip files already applied. If your database was created before this ledger existed but already has `public.users`, the script auto-marks `0000_init.sql` as applied so only newer files (e.g. `0001_merchandising.sql`) execute.
+
    **Note:** Use the **pooled** URL in `.env.local` for the app. For `drizzle-kit push` only, use Neon’s **direct** (non-`-pooler`) URL from the console.
 
 4. **Run**

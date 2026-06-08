@@ -10,9 +10,9 @@ const createSchema = z.object({
   orderId: z.string().uuid(),
   rating: z.number().int().min(1).max(5),
   title: z.string().max(100).optional(),
-  body: z.string().min(10).max(2000),
-  pros: z.string().optional(),
-  cons: z.string().optional(),
+  body: z.string().min(50).max(500),
+  pros: z.string().max(500).optional(),
+  cons: z.string().max(500).optional(),
   imageUrls: z.array(z.string().url()).max(3).optional(),
 });
 
@@ -36,6 +36,19 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!order) return jsonError("Only delivered orders can be reviewed", 400);
+
+    const [dup] = await db
+      .select({ id: reviews.id })
+      .from(reviews)
+      .where(
+        and(
+          eq(reviews.userId, session.user.id),
+          eq(reviews.productId, parsed.data.productId),
+          eq(reviews.orderId, parsed.data.orderId),
+        ),
+      )
+      .limit(1);
+    if (dup) return jsonError("You already submitted a review for this product on this order", 400);
 
     const [created] = await db
       .insert(reviews)

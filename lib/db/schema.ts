@@ -991,6 +991,42 @@ export const bundleItems = pgTable(
   (table) => [index("bundle_items_bundle_id_idx").on(table.bundleId)],
 );
 
+// --- Merchandising: search ranking & A/B tests ---
+export const searchRankingSettings = pgTable("search_ranking_settings", {
+  id: uuid("id").primaryKey(),
+  matchNameWeight: decimal("match_name_weight", { precision: 12, scale: 4 }).notNull(),
+  matchDescWeight: decimal("match_desc_weight", { precision: 12, scale: 4 }).notNull(),
+  matchSkuWeight: decimal("match_sku_weight", { precision: 12, scale: 4 }).notNull(),
+  salesLogCoef: decimal("sales_log_coef", { precision: 12, scale: 4 }).notNull(),
+  ratingCoef: decimal("rating_coef", { precision: 12, scale: 4 }).notNull(),
+  reviewCountCoef: decimal("review_count_coef", { precision: 12, scale: 4 }).notNull(),
+  featuredBonus: decimal("featured_bonus", { precision: 12, scale: 4 }).notNull(),
+  bestsellerBonus: decimal("bestseller_bonus", { precision: 12, scale: 4 }).notNull(),
+  inStockBonus: decimal("in_stock_bonus", { precision: 12, scale: 4 }).notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const abExperiments = pgTable(
+  "ab_experiments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: varchar("slug", { length: 64 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    segment: varchar("segment", { length: 32 }).default("all").notNull(),
+    trafficBPercent: integer("traffic_b_percent").default(50).notNull(),
+    variantAConfig: jsonb("variant_a_config").default({}).notNull(),
+    variantBConfig: jsonb("variant_b_config").default({}).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("ab_experiments_slug_idx").on(table.slug),
+    index("ab_experiments_active_idx").on(table.isActive),
+  ],
+);
+
 // --- Marketing campaigns (Phase 2) ---
 export const campaigns = pgTable(
   "campaigns",

@@ -26,6 +26,30 @@ function AccountPageContent() {
   const showGoogleSignIn =
     process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED === "true";
 
+  const [referral, setReferral] = useState<{
+    shareUrl: string | null;
+    whatsappUrl: string | null;
+    invited: number;
+    ordered: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (session?.user) {
+      void fetch("/api/referral/stats")
+        .then((r) => r.json())
+        .then((j) => {
+          if (j.success)
+            setReferral({
+              shareUrl: j.data.shareUrl,
+              whatsappUrl: j.data.whatsappUrl,
+              invited: j.data.invited,
+              ordered: j.data.ordered,
+            });
+        })
+        .catch(() => undefined);
+    }
+  }, [session?.user?.id]);
+
   useEffect(() => {
     const errCode = searchParams.get("error");
     const described = describeAuthCallbackError(errCode);
@@ -72,7 +96,7 @@ function AccountPageContent() {
 
   if (session?.user) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16">
+      <div className="mx-auto max-w-xl px-4 py-16">
         <BackToHome />
         <Card>
           <CardHeader>
@@ -86,6 +110,9 @@ function AccountPageContent() {
             <div className="flex flex-col gap-2">
               <Button variant="outline" asChild>
                 <Link href="/orders">My Orders</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/subscriptions">My Subscriptions</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/wishlist">Wishlist</Link>
@@ -104,6 +131,34 @@ function AccountPageContent() {
                 </Button>
               )}
             </div>
+            {referral?.shareUrl && (
+              <div className="rounded-[length:var(--radius-card)] border border-border bg-accent-soft/40 p-4">
+                <p className="text-sm font-semibold text-text-primary">Referral program</p>
+                <p className="mt-1 text-xs text-text-secondary">
+                  Invited {referral.invited} · Friends with orders {referral.ordered}
+                </p>
+                <p className="mt-2 break-all font-mono text-xs text-text-secondary">{referral.shareUrl}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(referral.shareUrl!);
+                    }}
+                  >
+                    Copy link
+                  </Button>
+                  {referral.whatsappUrl && (
+                    <Button size="sm" variant="secondary" asChild>
+                      <a href={referral.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                        Share on WhatsApp
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
             <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/" })}>
               Sign Out
             </Button>

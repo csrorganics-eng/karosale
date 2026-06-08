@@ -58,6 +58,55 @@ export async function getUserKarmaBalance(userId: string): Promise<number> {
   return u?.karmaPoints ?? 0;
 }
 
+const REVIEW_APPROVAL_KARMA = 5;
+const REVIEW_KARMA_REF_TYPE = "review_approved";
+
+/** Idempotent: first time a review is approved, credit Phase-2 review bonus karma. */
+export async function grantReviewApprovalKarmaIfNeeded(
+  reviewUserId: string,
+  reviewId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [dup] = await tx
+      .select({ id: loyaltyTransactions.id })
+      .from(loyaltyTransactions)
+      .where(
+        and(
+          eq(loyaltyTransactions.userId, reviewUserId),
+          eq(loyaltyTransactions.referenceId, reviewId),
+          eq(loyaltyTransactions.referenceType, REVIEW_KARMA_REF_TYPE),
+        ),
+      )
+      .limit(1);
+    if (dup) return;
+
+    const [u] = await tx
+      .select({ karmaPoints: users.karmaPoints })
+      .from(users)
+      .where(eq(users.id, reviewUserId))
+      .limit(1);
+    if (!u) return;
+
+    const newBal = u.karmaPoints + REVIEW_APPROVAL_KARMA;
+    await tx
+      .update(users)
+      .set({ karmaPoints: newBal, updatedAt: new Date() })
+      .where(eq(users.id, reviewUserId));
+
+    await tx.insert(loyaltyTransactions).values({
+      userId: reviewUserId,
+      type: "bonus",
+      points: REVIEW_APPROVAL_KARMA,
+      balanceAfter: newBal,
+      referenceId: reviewId,
+      referenceType: REVIEW_KARMA_REF_TYPE,
+      description: `${REVIEW_APPROVAL_KARMA} Karma — your review was published`,
+    });
+  });
+
+  await syncUserKarmaTierFromPoints(reviewUserId);
+}
+
 /**
  * Tier discount applies to merchandise subtotal (before coupon & karma).
  * Free shipping: if subtotal after tier discount meets tier.freeShippingOn (or always when threshold 0 for Master Farmer — encoded as null + discount rules in seed).

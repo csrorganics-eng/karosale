@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>User Acceptance Test Cases — CSR Organics / Karosale</title>
+  <style>
+    :root {
+      --ink: #1a2e26;
+      --muted: #4a6358;
+      --line: #c5d4cc;
+      --bg: #f6faf7;
+      --card: #fff;
+      --accent: #1e4d3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.5;
+      margin: 0;
+      padding: 1.5rem;
+      font-size: 15px;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    h1 {
+      font-family: system-ui, sans-serif;
+      font-size: 1.65rem;
+      color: var(--accent);
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 0.35rem;
+    }
+    h2 {
+      font-family: system-ui, sans-serif;
+      font-size: 1.2rem;
+      margin-top: 2rem;
+      color: var(--accent);
+    }
+    h3 { font-family: system-ui, sans-serif; font-size: 1rem; margin-top: 1.25rem; }
+    p, li { color: var(--muted); }
+    .meta {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+    .meta strong { color: var(--ink); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      font-size: 13px;
+      margin: 1rem 0 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 0.65rem 0.5rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #e8f0eb;
+      font-family: system-ui, sans-serif;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    tr:nth-child(even) td { background: #fafcfa; }
+    .id { width: 3.2rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .pass { width: 4.5rem; text-align: center; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .no-print { display: none; }
+      h2 { page-break-after: avoid; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; }
+    }
+    .footer {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>User acceptance test cases</h1>
+    <p><strong>Product:</strong> CSR Organics storefront and internal admin tools (Karosale codebase).</p>
+    <p><strong>Audience:</strong> QA, product owners, and operations — no technical background required.</p>
+
+    <div class="meta">
+      <p><strong>How to use this document</strong></p>
+      <ol>
+        <li>Fill in <strong>Environment URL</strong> below with your test site address (for example your preview or staging link).</li>
+        <li>Run <code>npm run seed</code> once on that environment if you need sample products and orders (optional but recommended for packaging and pick-list tests).</li>
+        <li>For each row, perform the steps in <strong>What you do</strong>, then check <strong>What you should see</strong>. Mark <strong>Pass</strong> or <strong>Fail</strong> in the last column and add the date and your initials.</li>
+        <li>To share: send this HTML file as an attachment, or open it in a browser and use <strong>Print → Save as PDF</strong>. You can also copy the tables into Microsoft Excel or Google Sheets if your team prefers spreadsheets.</li>
+      </ol>
+      <p><strong>Environment URL:</strong> _________________________________</p>
+    </div>
+
+    <h2>1. Test accounts (after running the seed script)</h2>
+    <p>Passwords are shown for <strong>local / QA environments only</strong>. Do not use these on production.</p>
+    <table>
+      <thead>
+        <tr><th>Role</th><th>Email</th><th>Password</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Shopper (customer)</td><td>qa.tester@csrorganics.com</td><td>QATester@123</td><td>Browse shop, place orders, search</td></tr>
+        <tr><td>Admin</td><td>admin.qa@csrorganics.com</td><td>AdminQA@123</td><td>Admin dashboard, orders, Search &amp; A/B settings</td></tr>
+        <tr><td>Packer</td><td>packer.qa@csrorganics.com</td><td>PackerQA@123</td><td>Today’s pick list (warehouse picking)</td></tr>
+      </tbody>
+    </table>
+    <p>Everyone signs in from the same account page your team uses (typically <strong>/account</strong>).</p>
+
+    <h2>2. Sample data from the seed (helps specific tests)</h2>
+    <ul>
+      <li><strong>Extra catalogue products:</strong> about 200 bulk test products (names/SKUs starting with patterns like QA-BULK) for load and search tests.</li>
+      <li><strong>Ten “active pipeline” orders:</strong> internal note text contains <code>SEED_DATA_ACTIVE_</code> — useful to see different order statuses on the admin orders list.</li>
+      <li><strong>Five “packaging ready” orders:</strong> internal note text contains <code>SEED_DATA_PKG_</code> — payment captured, order in processing, packaging tag/PDF link present, and lines on <strong>today’s</strong> pick list when the seed is run on the same calendar day you test.</li>
+    </ul>
+
+    <h2>3. Storefront — shop, search, and sort order</h2>
+    <table>
+      <thead>
+        <tr>
+          <th class="id">#</th>
+          <th>What you do</th>
+          <th>What you should see</th>
+          <th class="pass">Pass / Fail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">S1</td>
+          <td>Open the <strong>Shop</strong> page. Do not type anything in the search box on the page yet.</td>
+          <td>A grid of products appears. The page says how many products are shown out of the total (for example “Showing 24 of …”).</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">S2</td>
+          <td>In the shop search field, type a word you know appears in a product name (for example part of a seed name or “organic”). Click <strong>Filter</strong>.</td>
+          <td>Only products that match that word in the name, short description, or SKU appear. The count at the top matches the filter.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">S3</td>
+          <td>With a search still applied, open the <strong>Sort</strong> dropdown, choose <strong>Price: Low to High</strong>, then <strong>Filter</strong>.</td>
+          <td>Products are listed from cheapest to most expensive. Order is stable and sensible on the first page.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">S4</td>
+          <td>Choose <strong>Relevance</strong> as the sort (this is the default for many visits), enter a search term, and click <strong>Filter</strong>.</td>
+          <td>Results still match your search. The <strong>order</strong> of products reflects “best match first”: closer name matches and stronger sales/ratings signals can appear higher than weak matches (exact behaviour is tuned in admin — see section 5).</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">S5</td>
+          <td>In the site header, use the <strong>Search products</strong> box (type at least two characters) and wait a moment.</td>
+          <td>A small dropdown list of up to eight suggested products appears. Each suggestion shows name and price; clicking one opens that product’s page.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">S6</td>
+          <td>Try a search term that matches <strong>no</strong> products.</td>
+          <td>You get an empty product list (or a clear “no products” style message), not a broken page.</td>
+          <td class="pass"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. Admin tool — day-to-day operations</h2>
+    <p>Sign in as <strong>admin.qa@csrorganics.com</strong> (after seed). Use the left-hand menu to move between sections.</p>
+    <table>
+      <thead>
+        <tr>
+          <th class="id">#</th>
+          <th>What you do</th>
+          <th>What you should see</th>
+          <th class="pass">Pass / Fail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">A1</td>
+          <td>Open <strong>Dashboard</strong>.</td>
+          <td>Cards for today’s sales value, today’s order count, orders still to fulfil, and low-stock product count. A short list of recent orders with customer names. A link toward <strong>Karma rewards</strong> management.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">A2</td>
+          <td>Open <strong>Orders</strong>. Find an order and click <strong>View</strong>.</td>
+          <td>Order number, customer contact, line items with quantities and money, current status badge, buttons for <strong>Print tag</strong> and shipping (where configured), and a way to change status and save.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">A3</td>
+          <td>On a seeded packaging-ready order (<code>SEED_DATA_PKG_</code> in notes if you can see notes in your tools), click <strong>Print tag</strong>.</td>
+          <td>A PDF opens in a new tab (test data uses a public sample PDF). If generation is slow, the app may ask you to try again shortly — eventually a link should work.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">A4</td>
+          <td>Change the order status in the dropdown, click <strong>Save status</strong>, then refresh the page.</td>
+          <td>The status stays as you saved it.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">A5</td>
+          <td>Briefly open <strong>Products</strong>, <strong>Inventory</strong>, <strong>Reviews</strong>, <strong>Karma Rewards</strong>, <strong>Marketing</strong>, <strong>Analytics</strong>, <strong>Customers</strong>, and <strong>Settings</strong>.</td>
+          <td>Each page loads without a blank error screen. Content may be empty in a fresh environment but navigation works.</td>
+          <td class="pass"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>5. Search ranking confirmation — admin “Search &amp; A/B”</h2>
+    <p>This screen controls <strong>how strongly</strong> different signals influence product order when shoppers use <strong>Relevance</strong> sort or the header search suggestions. You are not editing product data here — only the “rules of the game” for ordering.</p>
+    <table>
+      <thead>
+        <tr>
+          <th class="id">#</th>
+          <th>What you do</th>
+          <th>What you should see</th>
+          <th class="pass">Pass / Fail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">R1</td>
+          <td>Admin → <strong>Search &amp; A/B</strong>. Wait for the page to finish loading.</td>
+          <td>A form listing sliders or fields with plain-language labels (for example name match bonus, sales influence, rating, reviews count, featured/bestseller bonuses, in-stock bonus). A list area for experiments may appear below.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">R2</td>
+          <td>Change one number slightly (for example increase “Featured product bonus” by a small amount), save the form.</td>
+          <td>A success message such as “Saved.” Values remain after refresh.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">R3</td>
+          <td>In the shop, run the <strong>same search</strong> twice with <strong>Relevance</strong> sort: once before your change, once after (you may need two browsers or a private window to compare if sessions differ).</td>
+          <td>Product order may shift in a sensible way when featured products matter more (large changes make bigger shifts). If nothing moves, your catalogue may have few featured items matching that search — try another keyword or a bigger test change.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">R4</td>
+          <td>Optional: create a small A/B experiment with two JSON variant configs (only if your team is comfortable with JSON), or skip.</td>
+          <td>Experiment appears in the list; you can pause or resume it from the admin UI without errors.</td>
+          <td class="pass"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>6. Packer — today’s pick list</h2>
+    <table>
+      <thead>
+        <tr>
+          <th class="id">#</th>
+          <th>What you do</th>
+          <th>What you should see</th>
+          <th class="pass">Pass / Fail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">P1</td>
+          <td>Sign in as <strong>packer.qa@csrorganics.com</strong>. Open the packer pick list URL your team uses (commonly <strong>/packer/picklist</strong>).</td>
+          <td>A page titled like “Today’s Pick List” with a count of line items. If the seed added packaging orders <strong>today</strong>, you see product names, SKUs, and quantities to pick.</td>
+          <td class="pass"></td>
+        </tr>
+        <tr>
+          <td class="id">P2</td>
+          <td>Tap <strong>Mark picked</strong> on one line.</td>
+          <td>That row updates (picked quantity matches required, or row shows completed styling). List refreshes without a full page crash.</td>
+          <td class="pass"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <p class="no-print"><strong>Tip:</strong> For a technical summary of merchandising and Phase 2 features, see <code>docs/PHASE2-STATUS.md</code> in the project repository.</p>
+      <p>Document version: 1.0 · Aligned with seeded QA users and admin/packer flows in the Karosale codebase.</p>
+    </div>
+  </div>
+</body>
+</html>

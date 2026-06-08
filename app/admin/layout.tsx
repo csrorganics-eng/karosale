@@ -12,6 +12,7 @@ import {
   Megaphone,
   BarChart3,
   MessageSquareText,
+  SlidersHorizontal,
 } from "lucide-react";
 
 const nav = [
@@ -22,6 +23,7 @@ const nav = [
   { href: "/admin/reviews", label: "Reviews", icon: MessageSquareText },
   { href: "/admin/karma-rewards", label: "Karma Rewards", icon: Sparkles },
   { href: "/admin/marketing", label: "Marketing", icon: Megaphone },
+  { href: "/admin/merchandising", label: "Search & A/B", icon: SlidersHorizontal },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/settings", label: "Settings", icon: Settings },

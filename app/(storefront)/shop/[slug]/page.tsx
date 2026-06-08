@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/utils";
 import { AddToCartSection } from "@/components/storefront/AddToCartSection";
+import { ProductViewBeacon } from "@/components/storefront/ProductViewBeacon";
+import { SubscribeSection } from "@/components/storefront/SubscribeSection";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,7 @@ export default async function ProductDetailPage({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <ProductViewBeacon productId={product.id} />
       <nav className="mb-6 text-sm text-text-secondary">
         <Link href="/">Home</Link>
         {" / "}
@@ -97,6 +100,17 @@ export default async function ProductDetailPage({
             productId={product.id}
             stockQty={product.stockQty}
             price={product.price}
+          />
+
+          <SubscribeSection
+            productId={product.id}
+            productName={product.name}
+            eligible={product.isSubscriptionEligible}
+            subscriptionDiscountPct={
+              product.subscriptionDiscountPct != null
+                ? String(product.subscriptionDiscountPct)
+                : null
+            }
           />
 
           <div className="mt-10 prose prose-sm max-w-none text-text-secondary">

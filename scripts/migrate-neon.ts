@@ -1,5 +1,9 @@
 /**
- * Apply Drizzle migrations via Neon HTTP (works when drizzle-kit push fails over TCP).
+ * Apply SQL migrations via Neon HTTP (works when drizzle-kit push fails over TCP).
+ *
+ * Tracks applied files in `_neon_sql_migrations` so re-runs skip completed migrations.
+ * If the ledger is empty but `public.users` already exists, `0000_init.sql` is marked
+ * applied without executing (avoids "type already exists" on existing databases).
  */
 import "./load-env-files";
 import { readFileSync, existsSync, readdirSync } from "fs";
@@ -14,6 +18,54 @@ if (!url) {
 
 const sql = neon(url);
 const migrationsDir = join(process.cwd(), "lib/db/migrations");
+
+async function ensureLedgerTable() {
+  await sql`
+CREATE TABLE IF NOT EXISTS _neon_sql_migrations (
+  name text PRIMARY KEY NOT NULL,
+  applied_at timestamptz DEFAULT now() NOT NULL
+)`;
+}
+
+async function ledgerCount(): Promise<number> {
+  const rows = await sql`
+    SELECT count(*)::int AS cnt FROM _neon_sql_migrations
+  `;
+  const r = rows as unknown as { cnt: number }[];
+  return r[0]?.cnt ?? 0;
+}
+
+async function isFileApplied(filename: string): Promise<boolean> {
+  const rows = await sql`
+    SELECT 1 AS ok FROM _neon_sql_migrations WHERE name = ${filename} LIMIT 1
+  `;
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+async function markApplied(filename: string) {
+  await sql`INSERT INTO _neon_sql_migrations (name) VALUES (${filename})`;
+}
+
+/** Existing DB from an earlier init: avoid re-running full 0000. */
+async function bootstrapLedgerForExistingSchema(files: string[]) {
+  if (files.length === 0) return;
+  const cnt = await ledgerCount();
+  if (cnt > 0) return;
+
+  const probe = await sql`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'users'
+    ) AS ok
+  `;
+  const row = probe as unknown as { ok: boolean }[];
+  if (row[0]?.ok === true && files.includes("0000_init.sql")) {
+    await sql`INSERT INTO _neon_sql_migrations (name) VALUES ('0000_init.sql')`;
+    console.log(
+      "Detected existing schema (public.users). Marked 0000_init.sql as applied — skipping full init.",
+    );
+  }
+}
 
 async function main() {
   if (!existsSync(migrationsDir)) {
@@ -30,22 +82,34 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Applying ${files.length} migration file(s) via Neon HTTP...`);
+  await ensureLedgerTable();
+  await bootstrapLedgerForExistingSchema(files);
+
+  let applied = 0;
+  let skipped = 0;
 
   for (const file of files) {
+    if (await isFileApplied(file)) {
+      console.log(`  ${file} — already applied, skip`);
+      skipped += 1;
+      continue;
+    }
+
     const content = readFileSync(join(migrationsDir, file), "utf8");
     const statements = content
       .split("--> statement-breakpoint")
       .map((s) => s.trim())
       .filter(Boolean);
 
-    console.log(`  ${file} (${statements.length} statements)`);
+    console.log(`  ${file} (${statements.length} statements) — applying…`);
     for (const statement of statements) {
       await sql(statement);
     }
+    await markApplied(file);
+    applied += 1;
   }
 
-  console.log("✅ Migrations applied");
+  console.log(`✅ Done. Applied ${applied} new migration file(s), skipped ${skipped}.`);
 }
 
 main().catch((err) => {

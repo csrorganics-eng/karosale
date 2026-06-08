@@ -2,13 +2,20 @@ import Link from "next/link";
 import { eq, desc, isNull, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, productImages, products } from "@/lib/db/schema";
+import { listActiveBundles } from "@/lib/db/queries/bundles";
+import {
+  getContinueShoppingProductIds,
+  getProductsByIdsForCards,
+  orderProductsByIdList,
+} from "@/lib/db/queries/personalization";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
+import { formatINR } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-async function getHomeData() {
+async function getHomeData(userId?: string | null) {
   const cats = await db
     .select()
     .from(categories)
@@ -44,12 +51,21 @@ async function getHomeData() {
     .orderBy(desc(products.totalSales))
     .limit(8);
 
-  return { cats, bestsellers };
+  const bundles = await listActiveBundles(4);
+
+  let continueShopping: Awaited<ReturnType<typeof getProductsByIdsForCards>> = [];
+  if (userId) {
+    const ids = await getContinueShoppingProductIds(userId, 4);
+    const rows = await getProductsByIdsForCards(ids);
+    continueShopping = orderProductsByIdList(rows, ids);
+  }
+
+  return { cats, bestsellers, bundles, continueShopping };
 }
 
 export default async function HomePage() {
   const session = await auth();
-  const { cats, bestsellers } = await getHomeData();
+  const { cats, bestsellers, bundles, continueShopping } = await getHomeData(session?.user?.id);
 
   const firstName = session?.user?.name?.split(/\s+/)[0];
 
@@ -127,6 +143,44 @@ export default async function HomePage() {
           <p className="text-text-secondary">Categories coming soon. Run the seed script to populate data.</p>
         )}
       </section>
+
+      {continueShopping.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-text-primary md:text-3xl">
+            Continue shopping
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">Based on products you recently viewed.</p>
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {continueShopping.map((p) => (
+              <ProductCard key={p.id} {...p} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {bundles.length > 0 && (
+        <section className="border-y border-border/60 bg-surface-subtle py-14">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <h2 className="font-display text-2xl font-semibold tracking-tight text-text-primary md:text-3xl">
+              Curated bundles
+            </h2>
+            <p className="mt-1 text-sm text-text-secondary">Save more when you shop curated sets.</p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {bundles.map(({ bundle: b }) => (
+                <Link
+                  key={b.id}
+                  href={`/bundles/${b.slug}`}
+                  className="rounded-[length:var(--radius-card)] border border-border bg-surface p-5 shadow-[var(--shadow-soft)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-medium)]"
+                >
+                  <p className="font-semibold text-text-primary">{b.name}</p>
+                  <p className="mt-2 font-mono text-lg text-primary">{formatINR(parseFloat(b.price))}</p>
+                  <p className="mt-2 text-xs text-primary">View bundle →</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="bg-surface-subtle py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">

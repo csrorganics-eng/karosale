@@ -16,10 +16,33 @@ import {
   productImages,
   products,
 } from "@/lib/db/schema";
+import { buildRelevanceScoreSql } from "@/lib/merchandising/relevance-sql";
+import { resolveRankingWeightsForRequest } from "@/lib/merchandising/resolve-weights";
+import type { RankingWeights } from "@/lib/merchandising/types";
+import { DEFAULT_RANKING_WEIGHTS } from "@/lib/merchandising/types";
 import type { productListQuerySchema } from "@/lib/validations/product";
 import type { z } from "zod";
 
 type ProductListQuery = z.infer<typeof productListQuerySchema>;
+
+const productCardSelect = {
+  id: products.id,
+  name: products.name,
+  slug: products.slug,
+  shortDescription: products.shortDescription,
+  price: products.price,
+  comparePrice: products.comparePrice,
+  stockQty: products.stockQty,
+  lowStockThreshold: products.lowStockThreshold,
+  isOrganicCertified: products.isOrganicCertified,
+  isFeatured: products.isFeatured,
+  isBestseller: products.isBestseller,
+  avgRating: products.avgRating,
+  reviewCount: products.reviewCount,
+  categorySlug: categories.slug,
+  categoryName: categories.name,
+  imageUrl: productImages.url,
+} as const;
 
 export async function listProducts(query: ProductListQuery) {
   const { page, limit, category, search, minPrice, maxPrice, isOrganic, inStock, sort } =
@@ -63,7 +86,16 @@ export async function listProducts(query: ProductListQuery) {
     conditions.push(sql`${products.stockQty} > 0`);
   }
 
-  const orderBy = (() => {
+  const whereClause = and(...conditions);
+
+  let weights: RankingWeights;
+  try {
+    weights = await resolveRankingWeightsForRequest();
+  } catch {
+    weights = { ...DEFAULT_RANKING_WEIGHTS };
+  }
+
+  const orderByNonRelevance = (() => {
     switch (sort) {
       case "price_asc":
         return asc(products.price);
@@ -80,43 +112,35 @@ export async function listProducts(query: ProductListQuery) {
     }
   })();
 
-  const items = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      slug: products.slug,
-      shortDescription: products.shortDescription,
-      price: products.price,
-      comparePrice: products.comparePrice,
-      stockQty: products.stockQty,
-      lowStockThreshold: products.lowStockThreshold,
-      isOrganicCertified: products.isOrganicCertified,
-      isFeatured: products.isFeatured,
-      isBestseller: products.isBestseller,
-      avgRating: products.avgRating,
-      reviewCount: products.reviewCount,
-      categorySlug: categories.slug,
-      categoryName: categories.name,
-      imageUrl: productImages.url,
-    })
-    .from(products)
-    .innerJoin(categories, eq(products.categoryId, categories.id))
-    .leftJoin(
-      productImages,
-      and(
-        eq(productImages.productId, products.id),
-        eq(productImages.isPrimary, true),
-      ),
-    )
-    .where(and(...conditions))
-    .orderBy(orderBy)
-    .limit(limit)
-    .offset(offset);
+  const baseQuery = () =>
+    db
+      .select(productCardSelect)
+      .from(products)
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(
+        productImages,
+        and(
+          eq(productImages.productId, products.id),
+          eq(productImages.isPrimary, true),
+        ),
+      )
+      .where(whereClause);
+
+  const items =
+    sort === "relevance"
+      ? await baseQuery()
+          .orderBy(desc(buildRelevanceScoreSql(search, weights)), desc(products.id))
+          .limit(limit)
+          .offset(offset)
+      : await baseQuery()
+          .orderBy(orderByNonRelevance)
+          .limit(limit)
+          .offset(offset);
 
   const [countResult] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(products)
-    .where(and(...conditions));
+    .where(whereClause);
 
   return {
     items,
@@ -156,7 +180,10 @@ export async function getProductBySlug(slug: string) {
   return { product, images, category };
 }
 
-export async function searchProducts(term: string, limit = 8) {
+export async function searchProducts(term: string, limit = 8, weights?: RankingWeights) {
+  const w = weights ?? (await resolveRankingWeightsForRequest().catch(() => DEFAULT_RANKING_WEIGHTS));
+  const scoreSql = buildRelevanceScoreSql(term, w);
+
   return db
     .select({
       id: products.id,
@@ -183,5 +210,6 @@ export async function searchProducts(term: string, limit = 8) {
         ),
       ),
     )
+    .orderBy(desc(scoreSql), desc(products.id))
     .limit(limit);
 }

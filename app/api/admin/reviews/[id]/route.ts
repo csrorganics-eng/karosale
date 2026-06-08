@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { products, reviews } from "@/lib/db/schema";
 import { jsonOk, jsonError } from "@/lib/api-response";
+import { grantReviewApprovalKarmaIfNeeded } from "@/lib/loyalty";
 
 const patchSchema = z.object({
   status: z.enum(["pending", "approved", "rejected", "flagged"]),
@@ -37,6 +38,13 @@ export async function PATCH(
         updatedAt: new Date(),
       })
       .where(eq(reviews.id, id));
+
+    if (
+      parsed.data.status === "approved" &&
+      existing.status !== "approved"
+    ) {
+      await grantReviewApprovalKarmaIfNeeded(existing.userId, id);
+    }
 
     if (parsed.data.status === "approved") {
       const [st] = await db
