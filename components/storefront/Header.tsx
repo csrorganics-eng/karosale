@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Menu, ShoppingCart, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/storefront/SearchBar";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { cn } from "@/lib/utils";
 import { BRAND_LOGO_PATH, BRAND_NAME } from "@/lib/brand";
+import { CART_UPDATED_EVENT, fetchCartItemCount } from "@/lib/cart-events";
 
 const navLinks = [
   { href: "/shop", label: "Shop" },
@@ -21,6 +22,11 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
+
+  const syncCartBadge = useCallback(() => {
+    void fetchCartItemCount().then(setCartItemCount);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -28,6 +34,12 @@ export function Header() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    syncCartBadge();
+    window.addEventListener(CART_UPDATED_EVENT, syncCartBadge);
+    return () => window.removeEventListener(CART_UPDATED_EVENT, syncCartBadge);
+  }, [syncCartBadge]);
 
   return (
     <header
@@ -67,8 +79,19 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setCartOpen(true)} aria-label="Cart">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCartOpen(true)}
+            aria-label={cartItemCount > 0 ? `Cart, ${cartItemCount} items` : "Cart"}
+            className="relative"
+          >
             <ShoppingCart className="h-5 w-5" />
+            {cartItemCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white">
+                {cartItemCount > 99 ? "99+" : cartItemCount}
+              </span>
+            )}
           </Button>
           <Button variant="ghost" size="icon" className="hidden md:flex" asChild>
             <Link href="/account" aria-label="Account">

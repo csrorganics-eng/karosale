@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CartUpdatedBeacon } from "@/components/storefront/CartUpdatedBeacon";
 import { BackToAccount } from "@/components/storefront/BackToAccount";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +12,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="mx-auto max-w-lg px-4 py-24">
+      <CartUpdatedBeacon />
       <div className="text-left">
         <BackToAccount />
       </div>

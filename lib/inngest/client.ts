@@ -1,6 +1,15 @@
 import { Inngest } from "inngest";
 
-export const inngest = new Inngest({ id: "csrorganics" });
+/**
+ * Outbound events (`inngest.send`) require **INNGEST_EVENT_KEY** (Inngest Cloud → your app → Keys → *Event key*).
+ * **INNGEST_SIGNING_KEY** is only for verifying *incoming* requests to `/api/inngest` — it cannot be used to send events.
+ */
+const eventKey = process.env.INNGEST_EVENT_KEY?.trim() || undefined;
+
+export const inngest = new Inngest({
+  id: "csrorganics",
+  ...(eventKey ? { eventKey } : {}),
+});
 
 export const INNGEST_EVENTS = {
   ORDER_PLACED: "order/placed",

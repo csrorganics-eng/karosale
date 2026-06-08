@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatINR } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/brand";
+import { emitCartUpdated } from "@/lib/cart-events";
 
 interface Address {
   id: string;
@@ -127,6 +128,8 @@ export default function CheckoutPage() {
         alert(json.error ?? "Order failed");
         return;
       }
+
+      emitCartUpdated();
 
       if (paymentMethod === "cod") {
         router.push(`/checkout/success?order=${json.data.order.orderNumber}`);

@@ -21,6 +21,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /** Native `ws` used by `@neondatabase/serverless` Pool — keep out of client bundles. */
+  serverExternalPackages: ["ws", "@neondatabase/serverless"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "karosale.com" },

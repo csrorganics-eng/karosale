@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { emitCartUpdated } from "@/lib/cart-events";
 
 export function AddBundleToCartButton({ slug }: { slug: string }) {
   const router = useRouter();
@@ -27,6 +28,7 @@ export function AddBundleToCartButton({ slug }: { slug: string }) {
               setErr(json.error ?? "Could not add to cart");
               return;
             }
+            emitCartUpdated();
             router.push("/checkout");
           } finally {
             setBusy(false);

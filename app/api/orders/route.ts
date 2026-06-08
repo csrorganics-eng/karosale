@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { auth, requireAuth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, type Database } from "@/lib/db";
 import { cartItems, carts, couponUsage, coupons, loyaltyTransactions, orderItems, orders, users } from "@/lib/db/schema";
 import { findOrCreateCart, getCartWithItems } from "@/lib/db/queries/cart";
 import { validateCoupon } from "@/lib/db/queries/coupons";
@@ -19,10 +19,10 @@ import {
   tierGrantsFreeShipping,
 } from "@/lib/loyalty";
 import { createRazorpayOrder } from "@/lib/razorpay";
-import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
+import { emitCodCheckoutEvents } from "@/lib/inngest/emit-order-events";
 import { jsonOk, jsonError } from "@/lib/api-response";
 
-type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type OrderPersistTx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export async function GET(request: Request) {
   try {
@@ -120,8 +120,9 @@ async function computeCheckoutTotals(
   };
 }
 
+/** Order + lines + coupon + cart + karma in one Postgres transaction (Neon Pool + WebSocket). */
 async function persistOrder(
-  tx: DbTx,
+  tx: OrderPersistTx,
   params: {
     sessionUserId: string;
     orderNumber: string;
@@ -350,8 +351,8 @@ export async function POST(request: Request) {
 
     const orderNumber = await generateOrderNumber();
 
-    const order = await db.transaction(async (tx) => {
-      return persistOrder(tx, {
+    const order = await db.transaction(async (tx) =>
+      persistOrder(tx, {
         sessionUserId: session.user.id,
         orderNumber,
         addressId,
@@ -371,18 +372,11 @@ export async function POST(request: Request) {
         items,
         cartId: cart.id,
         deductKarmaNow: paymentMethod === "cod",
-      });
-    });
+      }),
+    );
 
     if (paymentMethod === "cod") {
-      await inngest.send({
-        name: INNGEST_EVENTS.ORDER_COD_PLACED,
-        data: { orderId: order.id },
-      });
-      await inngest.send({
-        name: INNGEST_EVENTS.ORDER_PLACED,
-        data: { orderId: order.id },
-      });
+      await emitCodCheckoutEvents(order.id);
       return jsonOk({ order, paymentMethod: "cod" });
     }
 

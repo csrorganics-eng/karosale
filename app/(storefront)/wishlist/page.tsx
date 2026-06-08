@@ -7,6 +7,7 @@ import Image from "next/image";
 import { BackToAccount } from "@/components/storefront/BackToAccount";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/utils";
+import { emitCartUpdated } from "@/lib/cart-events";
 
 type Item = {
   id: string;
@@ -126,6 +127,7 @@ export default function WishlistPage() {
               const r = await fetch("/api/wishlist/add-all-to-cart", { method: "POST" });
               const j = await r.json();
               if (j.success) {
+                emitCartUpdated();
                 window.location.href = "/checkout";
               } else setShareMsg(j.error ?? "Could not add to cart");
             }}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BackToAccount } from "@/components/storefront/BackToAccount";
+import { emitCartUpdated } from "@/lib/cart-events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatINR } from "@/lib/utils";
@@ -41,17 +42,23 @@ export default function CartPage() {
   }, []);
 
   async function updateQty(itemId: string, qty: number) {
-    await fetch(`/api/cart/${itemId}`, {
+    const res = await fetch(`/api/cart/${itemId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ qty }),
     });
-    loadCart();
+    if (res.ok) {
+      await loadCart();
+      emitCartUpdated();
+    }
   }
 
   async function removeItem(itemId: string) {
-    await fetch(`/api/cart/${itemId}`, { method: "DELETE" });
-    loadCart();
+    const res = await fetch(`/api/cart/${itemId}`, { method: "DELETE" });
+    if (res.ok) {
+      await loadCart();
+      emitCartUpdated();
+    }
   }
 
   async function applyCoupon() {
@@ -63,7 +70,10 @@ export default function CartPage() {
     });
     const json = await res.json();
     if (!json.success) alert(json.error);
-    else loadCart();
+    else {
+      await loadCart();
+      emitCartUpdated();
+    }
   }
 
   if (loading) {

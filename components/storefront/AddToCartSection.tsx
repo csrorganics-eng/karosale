@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus } from "lucide-react";
+import { emitCartUpdated } from "@/lib/cart-events";
 
 export function AddToCartSection({
   productId,
@@ -32,6 +33,7 @@ export function AddToCartSection({
         alert(err.error ?? "Failed to add to cart");
         return;
       }
+      emitCartUpdated();
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
     } finally {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/utils";
+import { CART_UPDATED_EVENT } from "@/lib/cart-events";
 
 interface CartItem {
   id: string;
@@ -25,19 +26,26 @@ export function CartDrawer({
 
   useEffect(() => {
     if (!open) return;
-    fetch("/api/cart")
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success) {
-          const cartItems = json.data.items ?? [];
-          setItems(cartItems);
-          const sum = cartItems.reduce(
-            (acc: number, i: CartItem) => acc + parseFloat(i.total),
-            0,
-          );
-          setSubtotal(sum);
-        }
-      });
+
+    function load() {
+      fetch("/api/cart")
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.success) {
+            const cartItems = json.data.items ?? [];
+            setItems(cartItems);
+            const sum = cartItems.reduce(
+              (acc: number, i: CartItem) => acc + parseFloat(i.total),
+              0,
+            );
+            setSubtotal(sum);
+          }
+        });
+    }
+
+    load();
+    window.addEventListener(CART_UPDATED_EVENT, load);
+    return () => window.removeEventListener(CART_UPDATED_EVENT, load);
   }, [open]);
 
   if (!open) return null;

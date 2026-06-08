@@ -115,6 +115,17 @@ Never set `SEED_DATABASE=true` on Production.
 | **Inngest** | `https://YOUR_DOMAIN/api/inngest` (sync in Inngest dashboard) |
 | **Auth.js** | `NEXTAUTH_URL` = your Vercel domain |
 
+### Inngest keys (common 401 on COD)
+
+| Variable | Role |
+|----------|------|
+| `INNGEST_EVENT_KEY` | **Outbound** — required for `inngest.send()` (COD / Razorpay webhooks / admin actions). Copy the **Event key** from Inngest → your app → **Manage** → **Keys**. |
+| `INNGEST_SIGNING_KEY` | **Inbound** — verifies requests from Inngest to your app’s `/api/inngest` handler. **Cannot** be used as the event key. |
+
+If checkout returns **401 Event key not found**, the Event key is missing, mistyped, or the Signing key was pasted into `INNGEST_EVENT_KEY`. Redeploy after fixing env vars.
+
+COD checkout **still completes** if Inngest fails after the order is saved; check server logs for `[inngest]` warnings/errors and fix the key so pick lists / notifications run.
+
 ---
 
 ## 7. Custom domain (csrorganics.com)
