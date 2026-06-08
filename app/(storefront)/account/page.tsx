@@ -22,6 +22,12 @@ function AccountPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [magicSent, setMagicSent] = useState(false);
   const [magicBusy, setMagicBusy] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "register">("signin");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirm, setRegConfirm] = useState("");
+  const [regName, setRegName] = useState("");
+  const [regBusy, setRegBusy] = useState(false);
 
   const showGoogleSignIn =
     process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED === "true";
@@ -108,6 +114,9 @@ function AccountPageContent() {
             </p>
             <p className="text-sm text-text-secondary">Role: {session.user.role}</p>
             <div className="flex flex-col gap-2">
+              <Button asChild>
+                <Link href="/account/profile">My profile & addresses</Link>
+              </Button>
               <Button variant="outline" asChild>
                 <Link href="/orders">My Orders</Link>
               </Button>
@@ -173,102 +182,238 @@ function AccountPageContent() {
       <BackToHome />
       <Card>
         <CardHeader>
-          <CardTitle>Sign In</CardTitle>
+          <CardTitle>{authMode === "signin" ? "Sign In" : "Create account"}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Email</label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1"
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Password</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            {error && <p className="text-sm text-error">{error}</p>}
-            <Button type="submit" className="w-full">
-              Sign In
-            </Button>
-            {showGoogleSignIn && (
-              <>
-                <div className="relative my-4 text-center text-xs text-text-secondary">
-                  <span className="bg-surface px-2">or</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setError(null);
-                    void signIn("google", { callbackUrl: redirectTo ?? "/" });
-                  }}
-                >
-                  Continue with Google
-                </Button>
-              </>
-            )}
-            <div className={`space-y-2 ${showGoogleSignIn ? "mt-4" : "mt-6"}`}>
-              <Input
-                type="email"
-                placeholder="Email for magic link"
-                value={magicEmail}
-                onChange={(e) => setMagicEmail(e.target.value)}
-                autoComplete="email"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                disabled={magicBusy}
-                onClick={async () => {
-                  const addr = magicEmail.trim().toLowerCase();
-                  if (!addr) return;
-                  setMagicBusy(true);
-                  setError(null);
-                  setMagicSent(false);
-                  try {
-                    const res = await signIn("email", {
-                      email: addr,
-                      callbackUrl: redirectTo ?? "/",
-                      redirect: false,
-                    });
-                    if (res?.error) {
-                      setError(
-                        res.error === "EmailSignin"
-                          ? describeAuthCallbackError("EmailSignin")
-                          : res.error,
-                      );
-                      return;
-                    }
-                    setMagicSent(true);
-                  } finally {
-                    setMagicBusy(false);
-                  }
-                }}
-              >
-                {magicBusy ? "Sending…" : "Email me a sign-in link"}
+          <div className="mb-4 flex gap-2 rounded-[10px] border border-border bg-surface-subtle p-1">
+            <button
+              type="button"
+              className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                authMode === "signin" ? "bg-surface shadow-sm" : "text-text-secondary"
+              }`}
+              onClick={() => {
+                setAuthMode("signin");
+                setError(null);
+              }}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                authMode === "register" ? "bg-surface shadow-sm" : "text-text-secondary"
+              }`}
+              onClick={() => {
+                setAuthMode("register");
+                setError(null);
+              }}
+            >
+              New account
+            </button>
+          </div>
+
+          {authMode === "signin" ? (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Password</label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+              {error && <p className="text-sm text-error">{error}</p>}
+              <Button type="submit" className="w-full">
+                Sign In
               </Button>
-              {magicSent && (
-                <p className="text-sm text-success">
-                  Check your inbox for a sign-in link. It may take a minute to arrive.
-                </p>
+              {showGoogleSignIn && (
+                <>
+                  <div className="relative my-4 text-center text-xs text-text-secondary">
+                    <span className="bg-surface px-2">or</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setError(null);
+                      void signIn("google", { callbackUrl: redirectTo ?? "/" });
+                    }}
+                  >
+                    Continue with Google
+                  </Button>
+                </>
               )}
-            </div>
-          </form>
+            </form>
+          ) : (
+            <form
+              className="space-y-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setError(null);
+                const addr = regEmail.trim().toLowerCase();
+                if (regPassword !== regConfirm) {
+                  setError("Passwords do not match");
+                  return;
+                }
+                if (regPassword.length < 8) {
+                  setError("Password must be at least 8 characters");
+                  return;
+                }
+                setRegBusy(true);
+                try {
+                  const res = await fetch("/api/auth/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      email: addr,
+                      password: regPassword,
+                      name: regName.trim() || undefined,
+                    }),
+                  });
+                  const json = await res.json();
+                  if (!json.success) {
+                    setError(json.error ?? "Registration failed");
+                    return;
+                  }
+                  const result = await signIn("credentials", {
+                    email: addr,
+                    password: regPassword,
+                    redirect: false,
+                  });
+                  if (result?.error) {
+                    setError("Account created but sign-in failed. Try signing in manually.");
+                    return;
+                  }
+                  await update();
+                  if (redirectTo) {
+                    router.push(redirectTo);
+                    return;
+                  }
+                  router.push("/account/profile");
+                  router.refresh();
+                } finally {
+                  setRegBusy(false);
+                }
+              }}
+            >
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  className="mt-1"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Display name (optional)</label>
+                <Input
+                  type="text"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  className="mt-1"
+                  autoComplete="name"
+                  placeholder="How we greet you"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Password</label>
+                <Input
+                  type="password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  className="mt-1"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Confirm password</label>
+                <Input
+                  type="password"
+                  value={regConfirm}
+                  onChange={(e) => setRegConfirm(e.target.value)}
+                  className="mt-1"
+                  required
+                  autoComplete="new-password"
+                />
+              </div>
+              {error && <p className="text-sm text-error">{error}</p>}
+              <Button type="submit" className="w-full" disabled={regBusy}>
+                {regBusy ? "Creating account…" : "Create account & sign in"}
+              </Button>
+              <p className="text-xs text-text-secondary">
+                After sign-up, add a delivery address on your profile so checkout is one step faster.
+              </p>
+            </form>
+          )}
+
+          <div className={`space-y-2 border-t border-border pt-4 ${showGoogleSignIn ? "mt-4" : "mt-6"}`}>
+            <p className="text-center text-xs font-medium text-text-secondary">Passwordless sign-in</p>
+            <Input
+              type="email"
+              placeholder="Email for magic link"
+              value={magicEmail}
+              onChange={(e) => setMagicEmail(e.target.value)}
+              autoComplete="email"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              disabled={magicBusy}
+              onClick={async () => {
+                const addr = magicEmail.trim().toLowerCase();
+                if (!addr) return;
+                setMagicBusy(true);
+                setError(null);
+                setMagicSent(false);
+                try {
+                  const res = await signIn("email", {
+                    email: addr,
+                    callbackUrl: redirectTo ?? "/",
+                    redirect: false,
+                  });
+                  if (res?.error) {
+                    setError(
+                      res.error === "EmailSignin"
+                        ? describeAuthCallbackError("EmailSignin")
+                        : res.error,
+                    );
+                    return;
+                  }
+                  setMagicSent(true);
+                } finally {
+                  setMagicBusy(false);
+                }
+              }}
+            >
+              {magicBusy ? "Sending…" : "Email me a sign-in link"}
+            </Button>
+            {magicSent && (
+              <p className="text-sm text-success">
+                Check your inbox for a sign-in link. It may take a minute to arrive.
+              </p>
+            )}
+          </div>
           <p className="mt-4 text-center text-xs text-text-secondary">
             QA admin: admin.qa@csrorganics.com / AdminQA@123
           </p>

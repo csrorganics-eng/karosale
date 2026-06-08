@@ -14,7 +14,8 @@ export function describeAuthCallbackError(code: string | null): string | null {
     Callback: "Something went wrong during sign-in.",
     OAuthAccountNotLinked:
       "This email is already used with another sign-in method. Use email/password or the original provider.",
-    EmailSignin: "Could not send the sign-in email. Check RESEND_API_KEY and RESEND_FROM_EMAIL.",
+    EmailSignin:
+      "Could not send the sign-in email. If Resend mentions resend.dev, test sends only go to your Resend login email until you verify a domain (https://resend.com/domains). Use the same API key as a working app; copy its From into RESEND_FROM_EMAIL or set RESEND_FROM_DISPLAY_NAME= for a plain mailbox. Confirm DATABASE_URL.",
     CredentialsSignin: "Invalid email or password.",
     SessionRequired: "You must be signed in.",
   };

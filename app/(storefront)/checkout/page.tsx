@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatINR } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/brand";
 import { emitCartUpdated } from "@/lib/cart-events";
+import { useLoadingOverlay } from "@/components/providers/loading-overlay-provider";
+import { WaitingSpinner } from "@/components/ui/waiting-overlay";
 
 interface Address {
   id: string;
@@ -33,11 +35,13 @@ declare global {
 export default function CheckoutPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { start: startGlobalLoading, stop: stopGlobalLoading, runWithLoading } = useLoadingOverlay();
   const [cart, setCart] = useState<{
     items: Array<{ total: string }>;
     cart: { id: string } | null;
   } | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
   const [addressId, setAddressId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "cod">("razorpay");
   const [loading, setLoading] = useState(false);
@@ -76,7 +80,8 @@ export default function CheckoutPage() {
           const def = list.find((a) => a.isDefault) ?? list[0];
           if (def) setAddressId(def.id);
         }
-      });
+      })
+      .finally(() => setAddressesLoaded(true));
 
     fetch("/api/loyalty/balance")
       .then((r) => r.json())
@@ -112,6 +117,9 @@ export default function CheckoutPage() {
       return;
     }
     setLoading(true);
+    startGlobalLoading(
+      paymentMethod === "cod" ? "Placing your order…" : "Preparing secure checkout…",
+    );
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -155,27 +163,34 @@ export default function CheckoutPage() {
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
-          await fetch("/api/orders/verify-payment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId: order.id,
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            }),
+          await runWithLoading("Confirming payment…", async () => {
+            await fetch("/api/orders/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: order.id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
           });
           router.push(`/checkout/success?order=${order.orderNumber}`);
         },
       });
       rzp.open();
     } finally {
+      stopGlobalLoading();
       setLoading(false);
     }
   }
 
   if (status === "loading" || !cart) {
-    return <div className="mx-auto max-w-lg px-4 py-16 text-center">Loading checkout...</div>;
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <WaitingSpinner label="Loading checkout…" size="lg" />
+      </div>
+    );
   }
 
   return (
@@ -184,6 +199,17 @@ export default function CheckoutPage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="font-display text-3xl font-bold">Checkout</h1>
 
+        {addressesLoaded && addresses.length === 0 && (
+          <div className="mt-6 rounded-[length:var(--radius-card)] border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+            <p className="font-medium">Add a saved delivery address to complete checkout.</p>
+            <p className="mt-1 text-xs opacity-90">
+              You can save one here, or set it up on your profile (recommended so it is ready for next time).
+            </p>
+            <Button className="mt-3" variant="secondary" size="sm" asChild>
+              <Link href="/account/profile?redirect=/checkout">Open profile to add address</Link>
+            </Button>
+          </div>
+        )}
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Delivery address</CardTitle>

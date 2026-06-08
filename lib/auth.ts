@@ -12,9 +12,12 @@ import {
   users,
   verificationTokens,
 } from "@/lib/db/schema";
-import { sendEmail } from "@/lib/resend";
+import { getResendFromHeader, sendEmail } from "@/lib/resend";
 import { BRAND_NAME } from "@/lib/brand";
-import { buildMagicLinkEmailHtml } from "@/lib/magic-link-email";
+import {
+  buildMagicLinkEmailHtml,
+  buildMagicLinkEmailText,
+} from "@/lib/magic-link-email";
 
 const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -39,8 +42,7 @@ const magicLinkEnabled = emailMagicConfigured && databaseConfigured;
  * @see https://authjs.dev/guides/configuring-http-email
  */
 function resendMagicLinkProvider(): NextAuthConfig["providers"][number] {
-  const from =
-    process.env.RESEND_FROM_EMAIL?.trim() || "onboarding@resend.dev";
+  const from = getResendFromHeader();
 
   return {
     id: "email",
@@ -50,10 +52,12 @@ function resendMagicLinkProvider(): NextAuthConfig["providers"][number] {
     maxAge: 60 * 60 * 24,
     sendVerificationRequest: async ({ identifier, url }) => {
       const host = new URL(url).host;
+      const to = identifier.trim().toLowerCase();
       await sendEmail({
-        to: identifier,
+        to: [to],
         subject: `Your ${BRAND_NAME} sign-in link`,
         html: buildMagicLinkEmailHtml({ url, host }),
+        text: buildMagicLinkEmailText({ url, host }),
       });
     },
   };
@@ -137,16 +141,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.sub = uid;
         }
         token.role = (user as { role?: string }).role ?? "customer";
+        const nm = (user as { name?: string | null }).name;
+        if (nm) token.name = nm;
       }
 
       const userId = (token.id ?? token.sub) as string | undefined;
       if (userId) {
         const [dbUser] = await db
-          .select({ role: users.role })
+          .select({ role: users.role, name: users.name })
           .from(users)
           .where(eq(users.id, userId))
           .limit(1);
-        if (dbUser) token.role = dbUser.role;
+        if (dbUser) {
+          token.role = dbUser.role;
+          if (dbUser.name) token.name = dbUser.name;
+        }
       }
 
       return token;
@@ -155,6 +164,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = (token.id ?? token.sub) as string;
         session.user.role = (token.role as string) ?? "customer";
+        if (token.name) session.user.name = token.name as string;
       }
       return session;
     },

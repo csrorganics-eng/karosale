@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
 import { PostHogProvider } from "@/components/analytics/PostHogProvider";
+import { LoadingOverlayProvider } from "@/components/providers/loading-overlay-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -18,7 +19,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <PostHogProvider>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <LoadingOverlayProvider>{children}</LoadingOverlayProvider>
+        </QueryClientProvider>
       </PostHogProvider>
     </SessionProvider>
   );

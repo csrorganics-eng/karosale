@@ -25,7 +25,7 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
 
    **Google OAuth:** set server-side `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` (or `GOOGLE_CLIENT_*`). In Google Cloud Console add redirect URI `http://localhost:3000/api/auth/callback/google`. To show **Continue with Google** on the sign-in page, set `NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED=true` in `.env.local` (it stays hidden until then).
 
-   **Magic link:** set `RESEND_API_KEY` and a verified `RESEND_FROM_EMAIL` (or `onboarding@resend.dev` for Resend’s test domain). Requires `DATABASE_URL` so verification tokens can be stored.
+   **Magic link:** set `RESEND_API_KEY` and `DATABASE_URL` (verification tokens). Use `RESEND_FROM_EMAIL` on a **verified domain** in Resend for real recipients. `onboarding@resend.dev` is test-only: Resend will only deliver to the email on your Resend account until you verify a domain at [resend.com/domains](https://resend.com/domains). To match minimal Resend examples, set `RESEND_FROM_DISPLAY_NAME=` (empty) in `.env.local` for a plain `from` without a display name; you can also set `RESEND_FROM_EMAIL` to a full header like `Acme <onboarding@resend.dev>`.
 
 3. **Database**
    ```bash

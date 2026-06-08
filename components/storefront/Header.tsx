@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Menu, ShoppingCart, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/storefront/SearchBar";
@@ -11,18 +12,28 @@ import { cn } from "@/lib/utils";
 import { BRAND_LOGO_PATH, BRAND_NAME } from "@/lib/brand";
 import { CART_UPDATED_EVENT, fetchCartItemCount } from "@/lib/cart-events";
 
-const navLinks = [
+const coreNav = [
   { href: "/shop", label: "Shop" },
   { href: "/shop?isOrganic=true", label: "Organic" },
   { href: "/loyalty", label: "Karma Rewards" },
-  { href: "/account", label: "Account" },
 ];
 
 export function Header() {
+  const { status } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
+
+  const tailNav =
+    status === "authenticated"
+      ? [
+          { href: "/account/profile", label: "Profile" },
+          { href: "/account", label: "Account" },
+        ]
+      : [{ href: "/account", label: "Account" }];
+
+  const navLinks = [...coreNav, ...tailNav];
 
   const syncCartBadge = useCallback(() => {
     void fetchCartItemCount().then(setCartItemCount);

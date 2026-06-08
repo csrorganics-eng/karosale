@@ -62,6 +62,14 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link
+                  href="/account/profile"
+                  className="transition-colors duration-200 ease-premium hover:text-primary"
+                >
+                  Profile & addresses
+                </Link>
+              </li>
+              <li>
                 <a
                   href={`mailto:${BRAND_SUPPORT_EMAIL}`}
                   className="transition-colors duration-200 ease-premium hover:text-primary"

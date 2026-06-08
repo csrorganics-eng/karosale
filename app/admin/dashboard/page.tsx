@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatINR } from "@/lib/utils";
+import { WaitingSpinner } from "@/components/ui/waiting-overlay";
 
 interface DashboardData {
   today_gmv: number;
@@ -49,7 +50,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (!data) return <p className="text-text-secondary">Loading dashboard...</p>;
+  if (!data) return <WaitingSpinner label="Loading dashboard…" size="lg" className="py-16" />;
 
   return (
     <div>

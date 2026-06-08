@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus } from "lucide-react";
 import { emitCartUpdated } from "@/lib/cart-events";
+import { useLoadingOverlay } from "@/components/providers/loading-overlay-provider";
 
 export function AddToCartSection({
   productId,
@@ -19,23 +20,28 @@ export function AddToCartSection({
   const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState(false);
   const router = useRouter();
+  const { runWithLoading } = useLoadingOverlay();
 
   async function addToCart() {
     setLoading(true);
     try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, qty }),
+      await runWithLoading("Adding to cart…", async () => {
+        const res = await fetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, qty }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error ?? "Failed to add to cart");
+          throw new Error("add-to-cart-failed");
+        }
       });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error ?? "Failed to add to cart");
-        return;
-      }
       emitCartUpdated();
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
+    } catch {
+      /* runWithLoading rethrow or alert already shown */
     } finally {
       setLoading(false);
     }

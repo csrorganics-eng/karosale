@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shopper Journey — Functional E2E Test Report</title>
+  <style>
+    :root {
+      --bg: #f4f7f5;
+      --card: #fff;
+      --ink: #14221a;
+      --muted: #4a5f54;
+      --line: #c8d8ce;
+      --primary: #1e4d3a;
+      --pass: #166534;
+      --pass-bg: #dcfce7;
+      --fail: #b91c1c;
+      --fail-bg: #fee2e2;
+      --partial: #a16207;
+      --partial-bg: #fef9c3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      margin: 0;
+      padding: 1.5rem;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem;
+      color: var(--primary);
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 0.35rem;
+      margin-top: 0;
+    }
+    h2 {
+      font-size: 1.1rem;
+      margin-top: 2rem;
+      color: var(--primary);
+    }
+    .meta {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+    }
+    .meta dl { margin: 0; display: grid; grid-template-columns: 9rem 1fr; gap: 0.35rem 1rem; }
+    .meta dt { color: var(--muted); font-weight: 600; }
+    .meta dd { margin: 0; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin: 1.25rem 0;
+    }
+    .summary div {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      text-align: center;
+    }
+    .summary strong { display: block; font-size: 1.75rem; font-variant-numeric: tabular-nums; }
+    .summary span { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      font-size: 13px;
+      margin: 1rem 0 2rem;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    th, td { border: 1px solid var(--line); padding: 0.6rem 0.5rem; text-align: left; vertical-align: top; }
+    th {
+      background: #e4efe8;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--ink);
+    }
+    tr:nth-child(even) td { background: #fafcfb; }
+    .id { width: 3rem; font-weight: 700; color: var(--primary); white-space: nowrap; }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-pass { background: var(--pass-bg); color: var(--pass); }
+    .badge-fail { background: var(--fail-bg); color: var(--fail); }
+    .badge-partial { background: var(--partial-bg); color: var(--partial); }
+    .phase { background: #e8f2ec; font-weight: 700; color: var(--primary); }
+    ul.notes { color: var(--muted); font-size: 13px; }
+    .footer { font-size: 12px; color: var(--muted); margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+    @media print {
+      body { background: #fff; }
+      .summary div { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>End-to-end shopper journey — functional test report</h1>
+    <p><strong>Application:</strong> CSR Organics storefront (Karosale / Next.js). <strong>Report type:</strong> Journey scenarios with execution status from this test pass.</p>
+
+    <div class="meta">
+      <dl>
+        <dt>Generated</dt>
+        <dd id="gen-date">—</dd>
+        <dt>Base URL (smoke)</dt>
+        <dd><code>NEXT_PUBLIC_APP_URL</code> or <code>http://localhost:3000</code></dd>
+        <dt>Automated browser E2E</dt>
+        <dd>None configured in repo (no Playwright/Cypress). HTTP smoke only.</dd>
+        <dt>Legend</dt>
+        <dd>
+          <span class="badge badge-pass">Pass</span> Verified OK this run &nbsp;
+          <span class="badge badge-fail">Failed</span> Verified failure this run &nbsp;
+          <span class="badge badge-partial">Partial</span> Not executed in browser this run; behaviour inferred from code review / needs live env
+        </dd>
+      </dl>
+    </div>
+
+    <h2>Executive summary</h2>
+    <div class="summary">
+      <div><strong>1</strong><span>Pass (this run)</span></div>
+      <div><strong>1</strong><span>Failed (this run)</span></div>
+      <div><strong>38</strong><span>Partial (not run)</span></div>
+      <div><strong>40</strong><span>Total journey rows</span></div>
+    </div>
+    <ul class="notes">
+      <li><strong>Pass:</strong> <code>npx tsc --noEmit</code> completed with exit code 0 (type-safety / compile gate).</li>
+      <li><strong>Failed:</strong> <code>npm run smoke</code> could not reach the app (<code>ECONNREFUSED</code> on port 3000) — dev server was not running during report generation.</li>
+      <li><strong>Partial:</strong> Shopper scenarios below were <strong>not</strong> executed in a real browser session this run; they list expected flows from the codebase for QA to execute manually when <code>npm run dev</code>, database, and secrets are available (<strong>38</strong> journey rows).</li>
+    </ul>
+
+    <h2>Automated checks (this run)</h2>
+    <table>
+      <thead>
+        <tr><th class="id">ID</th><th>Check</th><th>Result</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">A1</td>
+          <td>TypeScript compile</td>
+          <td><span class="badge badge-pass">Pass</span></td>
+          <td><code>npx tsc --noEmit</code> — exit 0</td>
+        </tr>
+        <tr>
+          <td class="id">A2</td>
+          <td>HTTP smoke (<code>scripts/smoke-test.ts</code>)</td>
+          <td><span class="badge badge-fail">Failed</span></td>
+          <td>Health, products, categories, admin 401, loyalty 401 — fetch failed: connection refused to localhost:3000</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Shopper journey — scenario matrix (manual / UAT)</h2>
+    <p class="notes">Use seeded QA user <code>qa.tester@csrorganics.com</code> after <code>npm run seed</code> where applicable. All rows: <span class="badge badge-partial">Partial</span> until executed in a browser against a running deployment.</p>
+
+    <table>
+      <thead>
+        <tr><th class="id">ID</th><th>Scenario</th><th>Key steps &amp; expected</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr class="phase"><td colspan="4">Phase A — Discovery &amp; catalogue</td></tr>
+        <tr><td class="id">S01</td><td>Home loads</td><td>Open <code>/</code>; hero, nav, links render without error.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S02</td><td>Shop listing</td><td><code>/shop</code> shows product grid and count text.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S03</td><td>Category filter</td><td><code>/shop?category=…</code> filters; submit filter form.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S04</td><td>Search on shop</td><td>Query + sort relevance / price; results match.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S05</td><td>Header search typeahead</td><td>≥2 chars; dropdown suggestions; link to PDP.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S06</td><td>PDP load</td><td><code>/shop/[slug]</code> shows product, price, add-to-cart.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S07</td><td>Organic filter</td><td><code>/shop?isOrganic=true</code> applies.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S08</td><td>In-stock filter</td><td><code>/shop?inStock=true</code> applies.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S09</td><td>PDP out of stock</td><td>Add to cart disabled; stock messaging visible.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+
+        <tr class="phase"><td colspan="4">Phase B — Cart &amp; header</td></tr>
+        <tr><td class="id">S10</td><td>Add to cart (logged in)</td><td>PDP add; header badge count increases; toast/button feedback.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S11</td><td>Cart drawer</td><td>Open cart icon; lines and subtotal; link to checkout.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S12</td><td>Cart page</td><td><code>/cart</code> lists items; qty +/−; line totals; remove item updates badge.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S13</td><td>Cart coupon</td><td>Apply valid code; discount reflected; invalid shows error.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S14</td><td>Empty cart</td><td>Remove all; empty state + link to shop.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S15</td><td>Insufficient stock</td><td>Add qty &gt; stock; API error surfaced to user.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S16</td><td>Guest → login cart</td><td>After login, cart from cookie merges or persists per cart / merge APIs.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+
+        <tr class="phase"><td colspan="4">Phase C — Authentication gates</td></tr>
+        <tr><td class="id">S20</td><td>Checkout redirect</td><td>Logged out visit <code>/checkout</code> → redirect to <code>/account?redirect=/checkout</code>.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S21</td><td>Sign-in / OTP</td><td>Complete auth per your deployment (email/OTP providers).</td><td><span class="badge badge-partial">Partial</span></td></tr>
+
+        <tr class="phase"><td colspan="4">Phase D — Checkout</td></tr>
+        <tr><td class="id">S30</td><td>Checkout load</td><td>Spinner then cart summary, address list, payment choice.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S31</td><td>Select address</td><td>Radio selection persists for place order.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S32</td><td>New address</td><td>Add address form → save → appears in list and selectable.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S33</td><td>Karma slider</td><td>Adjust points; totals respect rules (max half order, etc.).</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S34</td><td>COD place order</td><td>COD selected → loading overlay → success URL with order number; cart cleared; badge 0.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S35</td><td>COD + Inngest</td><td>With valid <code>INNGEST_EVENT_KEY</code>, events enqueue (no 500 on order API).</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S36</td><td>Razorpay place order</td><td>Prepaid → Razorpay widget opens; test payment → verify-payment → success page.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S37</td><td>Razorpay cancel</td><td>Close widget without paying; order may exist unpaid — confirm UX matches policy.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S38</td><td>No address selected</td><td>Place order blocked with alert.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+
+        <tr class="phase"><td colspan="4">Phase E — Post-purchase</td></tr>
+        <tr><td class="id">S40</td><td>Success page</td><td><code>/checkout/success?order=…</code> shows confirmation and links.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S41</td><td>Orders list</td><td><code>/orders</code> lists user orders when authenticated.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S42</td><td>Order detail</td><td><code>/orders/[id]</code> shows lines and status if implemented.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S43</td><td>Tracking link</td><td>If AWB present, <code>/track/[awb]</code> resolves (when used).</td><td><span class="badge badge-partial">Partial</span></td></tr>
+
+        <tr class="phase"><td colspan="4">Phase F — Engagement &amp; extras</td></tr>
+        <tr><td class="id">S50</td><td>Loyalty / Karma</td><td><code>/loyalty</code> shows balance/tier when API configured.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S51</td><td>Wishlist</td><td>Add/remove heart; wishlist page; optional add-all-to-cart.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S52</td><td>Bundles</td><td><code>/bundles/[slug]</code> add bundle → cart/checkout path.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S53</td><td>Subscriptions PDP</td><td>Subscribe block if product supports subscription.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+
+        <tr class="phase"><td colspan="4">Phase G — Resilience &amp; UX</td></tr>
+        <tr><td class="id">S60</td><td>Global loading overlay</td><td>Long POST (checkout) shows full-screen wait UI.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S61</td><td>React Query debounce</td><td>Pages using <code>useQuery</code> show overlay only on slow fetches (&gt;~280ms).</td><td><span class="badge badge-partial">Partial</span></td></tr>
+        <tr><td class="id">S62</td><td>API error handling</td><td>Invalid checkout returns JSON error; user sees alert, no silent fail.</td><td><span class="badge badge-partial">Partial</span></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Recommended next step for a full Pass column</h2>
+    <ul class="notes">
+      <li>Run <code>npm run dev</code> with <code>DATABASE_URL</code> and auth secrets.</li>
+      <li>Execute the matrix above manually or add Playwright under <code>e2e/</code> with tagged tests per ID.</li>
+      <li>Re-run <code>npm run smoke</code> in CI after deploy to production/staging URL.</li>
+    </ul>
+
+    <div class="footer">
+      <p>Report generated by automated tooling + static analysis. File path: <code>docs/shopper-journey-e2e-report.html</code> — open in browser or Print → Save as PDF.</p>
+    </div>
+  </div>
+  <script>
+    document.getElementById("gen-date").textContent = new Date().toISOString().slice(0, 19) + "Z";
+  </script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BackToAccount } from "@/components/storefront/BackToAccount";
 import { emitCartUpdated } from "@/lib/cart-events";
+import { WaitingSpinner } from "@/components/ui/waiting-overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatINR } from "@/lib/utils";
@@ -77,7 +78,11 @@ export default function CartPage() {
   }
 
   if (loading) {
-    return <div className="mx-auto max-w-7xl px-4 py-16 text-center">Loading cart...</div>;
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16">
+        <WaitingSpinner label="Loading your cart…" size="lg" />
+      </div>
+    );
   }
 
   const items = data?.items ?? [];

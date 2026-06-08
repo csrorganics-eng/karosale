@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { auth, requireAuth } from "@/lib/auth";
 import { db, type Database } from "@/lib/db";
-import { cartItems, carts, couponUsage, coupons, loyaltyTransactions, orderItems, orders, users } from "@/lib/db/schema";
+import { cartItems, carts, couponUsage, coupons, loyaltyTransactions, orderItems, orders, users, addresses } from "@/lib/db/schema";
 import { findOrCreateCart, getCartWithItems } from "@/lib/db/queries/cart";
 import { validateCoupon } from "@/lib/db/queries/coupons";
 import { createOrderSchema } from "@/lib/validations/order";
@@ -288,6 +288,18 @@ export async function POST(request: Request) {
 
     const { addressId, paymentMethod, shippingType, karmaPointsUsed, notes, isGift, giftMessage } =
       parsed.data;
+
+    const [shippingAddress] = await db
+      .select({ id: addresses.id })
+      .from(addresses)
+      .where(and(eq(addresses.id, addressId), eq(addresses.userId, session.user.id)))
+      .limit(1);
+    if (!shippingAddress) {
+      return jsonError(
+        "Choose a delivery address saved to your account. Add one under Profile or on checkout.",
+        400,
+      );
+    }
 
     const cart = await findOrCreateCart(session.user.id);
     const { items, cart: cartRecord } = await getCartWithItems(cart.id);

@@ -28,3 +28,16 @@ export function buildMagicLinkEmailHtml(params: { url: string; host: string }) {
     </td></tr>
   </table></body></html>`;
 }
+
+/** Plain-text body for the same message (multipart/alternative). */
+export function buildMagicLinkEmailText(params: { url: string; host: string }) {
+  const { url, host } = params;
+  return [
+    `Sign in to ${host}`,
+    "",
+    `Open this link in your browser (expires in 24 hours):`,
+    url,
+    "",
+    "If you did not request a sign-in link, you can ignore this email.",
+  ].join("\n");
+}

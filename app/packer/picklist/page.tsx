@@ -2,31 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useLoadingOverlay } from "@/components/providers/loading-overlay-provider";
+import { WaitingSpinner } from "@/components/ui/waiting-overlay";
+
+type PickItem = {
+  id: string;
+  orderId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  qtyRequired: number;
+  qtyPicked: number;
+  isCompleted: boolean;
+};
 
 export default function PackerPicklistPage() {
-  const [items, setItems] = useState<
-    Array<{
-      id: string;
-      orderId: string;
-      productId: string;
-      productName: string;
-      productSku: string;
-      qtyRequired: number;
-      qtyPicked: number;
-      isCompleted: boolean;
-    }>
-  >([]);
+  const [items, setItems] = useState<PickItem[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const { runWithLoading } = useLoadingOverlay();
 
   function load() {
-    fetch("/api/admin/orders/picklist")
+    return fetch("/api/admin/orders/picklist")
       .then((r) => r.json())
       .then((json) => {
         if (json.success) setItems(json.data.items ?? []);
-      });
+      })
+      .finally(() => setListLoading(false));
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   async function pick(item: {
@@ -35,15 +40,33 @@ export default function PackerPicklistPage() {
     id: string;
     qtyRequired: number;
   }) {
-    await fetch(`/api/admin/orders/${item.orderId}/pack-item`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productId: item.productId,
-        qtyPacked: item.qtyRequired,
-      }),
-    });
-    load();
+    try {
+      await runWithLoading("Saving pick…", async () => {
+        const res = await fetch(`/api/admin/orders/${item.orderId}/pack-item`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: item.productId,
+            qtyPacked: item.qtyRequired,
+          }),
+        });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(j.error ?? "Pick update failed");
+        }
+      });
+      void load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Pick failed");
+    }
+  }
+
+  if (listLoading) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <WaitingSpinner label="Loading pick list…" size="lg" className="min-h-[40vh]" />
+      </div>
+    );
   }
 
   return (
@@ -62,7 +85,7 @@ export default function PackerPicklistPage() {
               Pick {item.qtyRequired} · Picked {item.qtyPicked}
             </p>
             {!item.isCompleted && (
-              <Button className="mt-3 w-full" size="lg" onClick={() => pick(item)}>
+              <Button className="mt-3 w-full" size="lg" onClick={() => void pick(item)}>
                 Mark picked ({item.qtyRequired})
               </Button>
             )}
