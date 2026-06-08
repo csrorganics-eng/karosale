@@ -113,7 +113,7 @@ Never set `SEED_DATABASE=true` on Production.
 | **Razorpay webhooks** | `https://YOUR_DOMAIN/api/webhooks/razorpay` |
 | **Shiprocket webhooks** | `https://YOUR_DOMAIN/api/webhooks/shiprocket` |
 | **Inngest** | `https://YOUR_DOMAIN/api/inngest` (sync in Inngest dashboard) |
-| **Auth.js** | `NEXTAUTH_URL` = your Vercel domain |
+| **Auth.js** | `NEXTAUTH_URL` (and `AUTH_URL` if set) must match the **exact** URL you open in the browser for that environment (production domain or current preview URL). If they point at an old or deleted Vercel deployment, sign-out and OAuth redirects can show **404 DEPLOYMENT_NOT_FOUND**. The app signs out using same-origin navigation to avoid that; still keep env URLs in sync. |
 
 ### Inngest keys (common 401 on COD)
 

@@ -1,9 +1,14 @@
 import { auth } from "@/lib/auth";
 import { jsonOk, jsonError } from "@/lib/api-response";
 import { getTierForPoints, getUserKarmaBalance } from "@/lib/loyalty";
+import { ensureLoyaltyTiersPopulated } from "@/lib/loyalty-seed-defaults";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await ensureLoyaltyTiersPopulated();
+
     const session = await auth();
     if (!session?.user?.id) return jsonError("Unauthorized", 401);
 

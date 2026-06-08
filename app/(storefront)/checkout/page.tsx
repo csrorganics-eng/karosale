@@ -115,7 +115,7 @@ export default function CheckoutPage() {
       })
       .finally(() => setAddressesLoaded(true));
 
-    fetch("/api/loyalty/balance")
+    fetch("/api/loyalty/balance", { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((json) => {
         if (json.success && typeof json.data?.karmaPoints === "number") {

@@ -168,7 +168,15 @@ function AccountPageContent() {
                 </div>
               </div>
             )}
-            <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/" })}>
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                await signOut({ redirect: false });
+                // Avoid default sign-out redirect: it uses AUTH_URL / NEXTAUTH_URL, which on Vercel
+                // can point at a removed preview and show DEPLOYMENT_NOT_FOUND. Same-origin navigation is safe.
+                window.location.replace(`${window.location.origin}/`);
+              }}
+            >
               Sign Out
             </Button>
           </CardContent>

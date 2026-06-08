@@ -4,9 +4,14 @@ import { db } from "@/lib/db";
 import { loyaltyTiers, loyaltyTransactions, users } from "@/lib/db/schema";
 import { jsonOk, jsonError } from "@/lib/api-response";
 import { getTierForPoints, getUserKarmaBalance } from "@/lib/loyalty";
+import { ensureLoyaltyTiersPopulated } from "@/lib/loyalty-seed-defaults";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await ensureLoyaltyTiersPopulated();
+
     const session = await auth();
     if (!session?.user?.id) return jsonError("Unauthorized", 401);
 
@@ -62,7 +67,12 @@ export async function GET() {
       .orderBy(desc(loyaltyTransactions.createdAt))
       .limit(50);
 
-    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const baseUrl = (
+      process.env.NEXT_PUBLIC_APP_URL ??
+      process.env.AUTH_URL ??
+      process.env.NEXTAUTH_URL ??
+      "http://localhost:3000"
+    ).replace(/\/$/, "");
     const referralCode = user?.referralCode ?? null;
     const referralLink = referralCode
       ? `${baseUrl}/account?ref=${encodeURIComponent(referralCode)}`
