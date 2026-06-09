@@ -53,7 +53,7 @@ export default function AdminDashboardPage() {
   if (!data) return <WaitingSpinner label="Loading dashboard…" size="lg" className="py-16" />;
 
   return (
-    <div>
+    <div className="min-w-0">
       <h1 className="font-display text-2xl font-bold">Dashboard</h1>
       <p className="text-text-secondary">Live overview · ● Live</p>
 
@@ -128,8 +128,8 @@ export default function AdminDashboardPage() {
           <CardTitle>Recent Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+            <table className="w-full min-w-[28rem] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-text-secondary">
                   <th className="pb-2 pr-4">Order #</th>

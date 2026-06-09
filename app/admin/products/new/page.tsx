@@ -41,7 +41,7 @@ export default function AdminNewProductPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <Link href="/admin/products" className="text-sm text-primary hover:underline">
         ← Products
       </Link>

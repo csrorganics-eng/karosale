@@ -3,15 +3,12 @@ import { eq, desc, isNull, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, productImages, products } from "@/lib/db/schema";
 import { listActiveBundles } from "@/lib/db/queries/bundles";
-import {
-  getContinueShoppingProductIds,
-  getProductsByIdsForCards,
-  orderProductsByIdList,
-} from "@/lib/db/queries/personalization";
+import { getPersonalizedPicksWithSources } from "@/lib/db/queries/personalization";
 import { ProductCard } from "@/components/storefront/ProductCard";
+import { PersonalizedForYouRail } from "@/components/storefront/PersonalizedForYouRail";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
-import { formatINR } from "@/lib/utils";
+import { formatINR, cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -53,19 +50,17 @@ async function getHomeData(userId?: string | null) {
 
   const bundles = await listActiveBundles(4);
 
-  let continueShopping: Awaited<ReturnType<typeof getProductsByIdsForCards>> = [];
+  let personalizedPicks: Awaited<ReturnType<typeof getPersonalizedPicksWithSources>> = [];
   if (userId) {
-    const ids = await getContinueShoppingProductIds(userId, 4);
-    const rows = await getProductsByIdsForCards(ids);
-    continueShopping = orderProductsByIdList(rows, ids);
+    personalizedPicks = await getPersonalizedPicksWithSources(userId, 8);
   }
 
-  return { cats, bestsellers, bundles, continueShopping };
+  return { cats, bestsellers, bundles, personalizedPicks };
 }
 
 export default async function HomePage() {
   const session = await auth();
-  const { cats, bestsellers, bundles, continueShopping } = await getHomeData(session?.user?.id);
+  const { cats, bestsellers, bundles, personalizedPicks } = await getHomeData(session?.user?.id);
 
   const firstName = session?.user?.name?.split(/\s+/)[0];
 
@@ -111,7 +106,16 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-y border-border/60 bg-surface py-7">
+      {session?.user?.id && personalizedPicks.length > 0 && (
+        <PersonalizedForYouRail firstName={firstName} picks={personalizedPicks} />
+      )}
+
+      <section
+        className={cn(
+          "border-y border-border/60 bg-surface py-7",
+          personalizedPicks.length > 0 && "mt-8 md:mt-10",
+        )}
+      >
         <div className="mx-auto flex max-w-7xl gap-10 overflow-x-auto px-4 text-xs font-medium tracking-widest text-text-secondary whitespace-nowrap uppercase sm:gap-14 sm:px-6">
           <span>100% Organic Certified</span>
           <span>Pan-India Delivery</span>
@@ -143,20 +147,6 @@ export default async function HomePage() {
           <p className="text-text-secondary">Categories coming soon. Run the seed script to populate data.</p>
         )}
       </section>
-
-      {continueShopping.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-text-primary md:text-3xl">
-            Continue shopping
-          </h2>
-          <p className="mt-1 text-sm text-text-secondary">Based on products you recently viewed.</p>
-          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {continueShopping.map((p) => (
-              <ProductCard key={p.id} {...p} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {bundles.length > 0 && (
         <section className="border-y border-border/60 bg-surface-subtle py-14">

@@ -63,7 +63,15 @@ export default function AdminOrderDetailPage() {
     }
   }
 
-  if (!data) return <p>Loading...</p>;
+  if (!data) {
+    return (
+      <div className="min-w-0 space-y-3 py-8" aria-busy="true">
+        <div className="h-4 w-32 animate-pulse rounded bg-accent-soft" />
+        <div className="h-8 max-w-md animate-pulse rounded bg-accent-soft" />
+        <div className="h-4 max-w-lg animate-pulse rounded bg-accent-soft" />
+      </div>
+    );
+  }
 
   const order = data.order as {
     orderNumber: string;
@@ -75,15 +83,15 @@ export default function AdminOrderDetailPage() {
   const items = data.items as Array<{ productName: string; qty: number; total: string }>;
 
   return (
-    <div>
+    <div className="min-w-0">
       <Link href="/admin/orders" className="text-sm text-primary hover:underline">
         ← Orders
       </Link>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="font-display text-2xl font-bold">{order.orderNumber}</h1>
+        <h1 className="min-w-0 break-words font-display text-2xl font-bold">{order.orderNumber}</h1>
         <Badge>{order.status}</Badge>
       </div>
-      <p className="text-text-secondary">
+      <p className="break-words text-text-secondary">
         {customer?.name} · {customer?.phone} · {formatINR(parseFloat(order.total))}
       </p>
 
@@ -114,9 +122,9 @@ export default function AdminOrderDetailPage() {
 
       <div className="mt-6 rounded-[length:var(--radius-card)] border border-border bg-surface p-4">
         <h2 className="font-semibold">Items</h2>
-        <ul className="mt-2 space-y-1 text-sm">
+        <ul className="mt-2 space-y-2 text-sm">
           {items?.map((item, i) => (
-            <li key={i}>
+            <li key={i} className="break-words">
               {item.productName} × {item.qty} — {formatINR(parseFloat(item.total))}
             </li>
           ))}

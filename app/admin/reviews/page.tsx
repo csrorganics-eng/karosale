@@ -38,9 +38,9 @@ export default function AdminReviewsPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <h1 className="font-display text-2xl font-bold">Review moderation</h1>
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         <Button variant={tab === "pending" ? "default" : "outline"} onClick={() => setTab("pending")}>
           Pending
         </Button>
@@ -83,7 +83,7 @@ function ReplyForm({ reviewId, onDone }: { reviewId: string; onDone: () => void 
   const [text, setText] = useState("");
   return (
     <form
-      className="mt-2 flex gap-2"
+      className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch"
       onSubmit={async (e) => {
         e.preventDefault();
         await fetch(`/api/admin/reviews/${reviewId}`, {
@@ -95,8 +95,13 @@ function ReplyForm({ reviewId, onDone }: { reviewId: string; onDone: () => void 
         onDone();
       }}
     >
-      <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Public reply…" />
-      <Button type="submit" size="sm">
+      <Input
+        className="min-w-0 sm:flex-1"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Public reply…"
+      />
+      <Button type="submit" size="sm" className="shrink-0 sm:self-auto">
         Save reply
       </Button>
     </form>

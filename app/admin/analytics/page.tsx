@@ -21,10 +21,17 @@ export default function AdminAnalyticsPage() {
       });
   }, []);
 
-  if (!data) return <p className="text-text-secondary">Loading analytics…</p>;
+  if (!data) {
+    return (
+      <div className="min-w-0 space-y-3 py-8" aria-busy="true">
+        <div className="h-8 max-w-xs animate-pulse rounded bg-accent-soft" />
+        <div className="h-4 max-w-md animate-pulse rounded bg-accent-soft" />
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <div className="min-w-0">
       <h1 className="font-display text-2xl font-bold">Analytics overview</h1>
       <p className="mt-2 text-sm text-text-secondary">
         Snapshot from the dashboard KPI endpoint. Extend with search analytics and funnel charts as traffic grows.

@@ -136,7 +136,7 @@ export default function AdminMerchandisingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10">
+    <div className="mx-auto max-w-3xl min-w-0 space-y-10">
       <div>
         <h1 className="font-display text-2xl font-bold">Search ranking &amp; A/B tests</h1>
         <p className="mt-2 text-sm text-text-secondary">

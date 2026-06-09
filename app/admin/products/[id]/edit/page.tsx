@@ -68,7 +68,7 @@ export default function AdminEditProductPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <Link href="/admin/products" className="text-sm text-primary hover:underline">
         ← Products
       </Link>
@@ -84,12 +84,14 @@ export default function AdminEditProductPage() {
             />
           </div>
         ))}
-        <Button type="button" variant="outline" onClick={generateAi}>
-          Generate AI description
-        </Button>
-        <Button type="submit" disabled={loading}>
-          Save changes
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={generateAi}>
+            Generate AI description
+          </Button>
+          <Button type="submit" disabled={loading}>
+            Save changes
+          </Button>
+        </div>
       </form>
     </div>
   );

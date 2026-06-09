@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AdminTableShell, ADMIN_DATA_TABLE_CLASS } from "@/components/admin/AdminTableShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -106,7 +107,7 @@ export default function AdminKarmaRewardsPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <Link href="/admin/dashboard" className="text-sm text-primary hover:underline">
         ← Dashboard
       </Link>
@@ -115,10 +116,10 @@ export default function AdminKarmaRewardsPage() {
         Configure loyalty tiers, point ranges, and discounts shown to customers.
       </p>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-2">
+      <div className="mt-8 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         <form
           onSubmit={submit}
-          className="rounded-[length:var(--radius-card)] border border-border bg-surface p-6 space-y-4"
+          className="min-w-0 space-y-4 rounded-[length:var(--radius-card)] border border-border bg-surface p-4 sm:p-6"
         >
           <h2 className="font-semibold">{editingId ? "Edit tier" : "Add new tier"}</h2>
           <div>
@@ -130,7 +131,7 @@ export default function AdminKarmaRewardsPage() {
               required
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="text-sm font-medium">Min points</label>
               <Input
@@ -151,7 +152,7 @@ export default function AdminKarmaRewardsPage() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="text-sm font-medium">Discount %</label>
               <Input
@@ -173,7 +174,7 @@ export default function AdminKarmaRewardsPage() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="text-sm font-medium">Badge label</label>
               <Input
@@ -193,7 +194,7 @@ export default function AdminKarmaRewardsPage() {
               />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : editingId ? "Update tier" : "Add tier"}
             </Button>
@@ -205,22 +206,22 @@ export default function AdminKarmaRewardsPage() {
           </div>
         </form>
 
-        <div className="rounded-[length:var(--radius-card)] border border-border bg-surface overflow-hidden">
-          <table className="w-full text-sm">
+        <AdminTableShell className="min-w-0">
+          <table className={ADMIN_DATA_TABLE_CLASS}>
             <thead>
               <tr className="border-b border-border bg-surface-subtle text-left text-text-secondary">
-                <th className="p-4">Tier</th>
-                <th className="p-4">Points</th>
-                <th className="p-4">Discount</th>
-                <th className="p-4">Actions</th>
+                <th>Tier</th>
+                <th>Points</th>
+                <th>Discount</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {tiers.map((t) => (
                 <tr key={t.id} className="border-b border-border/50">
-                  <td className="p-4">
+                  <td>
                     <span
-                      className="mr-2 inline-block h-3 w-3 rounded-full"
+                      className="mr-2 inline-block h-3 w-3 shrink-0 rounded-full"
                       style={{ backgroundColor: t.badgeColor }}
                     />
                     {t.name}
@@ -228,23 +229,20 @@ export default function AdminKarmaRewardsPage() {
                       {t.badgeLabel}
                     </Badge>
                   </td>
-                  <td className="p-4">
+                  <td>
                     {t.minPoints}
                     {t.maxPoints != null ? `–${t.maxPoints}` : "+"}
                   </td>
-                  <td className="p-4">{t.discountPct}%</td>
-                  <td className="p-4">
-                    <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-1"
-                      onClick={() => remove(t.id)}
-                    >
-                      Delete
-                    </Button>
+                  <td>{t.discountPct}%</td>
+                  <td>
+                    <div className="flex flex-wrap gap-1">
+                      <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => remove(t.id)}>
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -253,7 +251,7 @@ export default function AdminKarmaRewardsPage() {
           {tiers.length === 0 && (
             <p className="p-8 text-center text-text-secondary">No tiers yet. Add one or run seed.</p>
           )}
-        </div>
+        </AdminTableShell>
       </div>
     </div>
   );

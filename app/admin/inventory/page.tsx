@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdminTableShell, ADMIN_DATA_TABLE_CLASS } from "@/components/admin/AdminTableShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
 export default function AdminInventoryPage() {
   const [products, setProducts] = useState<
     Array<{
@@ -37,26 +39,26 @@ export default function AdminInventoryPage() {
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <h1 className="font-display text-2xl font-bold">Inventory</h1>
-      <div className="mt-6 overflow-x-auto rounded-[length:var(--radius-card)] border border-border bg-surface">
-        <table className="w-full text-sm">
+      <AdminTableShell className="mt-4 sm:mt-6">
+        <table className={ADMIN_DATA_TABLE_CLASS}>
           <thead>
             <tr className="border-b border-border bg-surface-subtle text-left text-text-secondary">
-              <th className="p-4">Product</th>
-              <th className="p-4">SKU</th>
-              <th className="p-4">Stock</th>
-              <th className="p-4">Status</th>
-              <th className="p-4">Adjust</th>
+              <th>Product</th>
+              <th>SKU</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th>Adjust</th>
             </tr>
           </thead>
           <tbody>
             {products.map((p) => (
               <tr key={p.id} className="border-b border-border/50">
-                <td className="p-4">{p.name}</td>
-                <td className="p-4 font-mono text-xs">{p.sku}</td>
-                <td className="p-4">{p.stockQty}</td>
-                <td className="p-4">
+                <td>{p.name}</td>
+                <td className="font-mono text-xs">{p.sku}</td>
+                <td>{p.stockQty}</td>
+                <td>
                   <Badge
                     variant={
                       p.status === "in_stock"
@@ -69,24 +71,21 @@ export default function AdminInventoryPage() {
                     {p.status.replace("_", " ")}
                   </Badge>
                 </td>
-                <td className="p-4">
-                  <Button size="sm" variant="outline" onClick={() => adjust(p.id, 1)}>
-                    +1
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="ml-1"
-                    onClick={() => adjust(p.id, -1)}
-                  >
-                    -1
-                  </Button>
+                <td>
+                  <div className="flex flex-wrap gap-1">
+                    <Button size="sm" variant="outline" onClick={() => adjust(p.id, 1)}>
+                      +1
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => adjust(p.id, -1)}>
+                      -1
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </AdminTableShell>
     </div>
   );
 }

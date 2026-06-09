@@ -20,6 +20,7 @@ import {
   pickListItems,
   packagingTags,
 } from "../lib/db/schema";
+import { bulkDisplayName, getBulkSeedRow, MAIN_SEED_PRODUCTS } from "./seed-product-catalog";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=400&fit=crop";
@@ -199,21 +200,8 @@ async function main() {
     }
   }
 
-  const productDefs = [
-    { name: "Tomato Hybrid Seeds", slug: "tomato-hybrid-seeds", cat: "vegetable-seeds", price: "89", stock: 120, organic: true, featured: true, bestseller: true },
-    { name: "Spinach Palak Seeds", slug: "spinach-palak-seeds", cat: "vegetable-seeds", price: "59", stock: 80, organic: true },
-    { name: "Marigold Flower Seeds", slug: "marigold-seeds", cat: "flower-herb-seeds", price: "45", stock: 60, organic: false },
-    { name: "Vermicompost 5kg", slug: "vermicompost-5kg", cat: "organic-manure", price: "299", stock: 45, organic: true, bestseller: true, compare: "349" },
-    { name: "Cow Manure Organic 10kg", slug: "cow-manure-10kg", cat: "organic-manure", price: "199", stock: 3, organic: true, low: true },
-    { name: "Grow Bag 12 inch", slug: "grow-bag-12", cat: "grow-bags", price: "79", stock: 200, organic: false },
-    { name: "Garden Trowel Set", slug: "garden-trowel-set", cat: "garden-tools", price: "349", stock: 25, organic: false },
-    { name: "Organic Turmeric 200g", slug: "organic-turmeric", cat: "organic-groceries", price: "149", stock: 0, organic: true, featured: true },
-    { name: "Basil Herb Seeds", slug: "basil-herb-seeds", cat: "flower-herb-seeds", price: "55", stock: 90, organic: true },
-    { name: "Neem Cake Fertilizer 2kg", slug: "neem-cake-2kg", cat: "organic-manure", price: "179", stock: 15, organic: true, expiry: true },
-  ];
-
   let productCount = 0;
-  for (const p of productDefs) {
+  for (const p of MAIN_SEED_PRODUCTS) {
     const [existing] = await db.select().from(products).where(eq(products.slug, p.slug)).limit(1);
     if (existing) continue;
 
@@ -227,8 +215,9 @@ async function main() {
         categoryId: catIds[p.cat]!,
         name: p.name,
         slug: p.slug,
-        shortDescription: `Premium quality ${p.name} for your organic garden.`,
-        description: `<p>${p.name} — certified organic, carefully sourced for Indian climates.</p>`,
+        shortDescription: p.shortDescription,
+        description: p.description,
+        metaKeywords: p.metaKeywords ?? null,
         price: p.price,
         comparePrice: p.compare ?? null,
         sku: `SKU-${p.slug.toUpperCase().slice(0, 12)}`,
@@ -254,42 +243,39 @@ async function main() {
     }
   }
 
-  for (const slug of Object.keys(catIds)) {
-    const rows = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(eq(products.categoryId, catIds[slug]!));
+  /** Refresh demo copy on every seed so search QA stays realistic after slug inserts. */
+  for (const p of MAIN_SEED_PRODUCTS) {
     await db
-      .update(categories)
-      .set({ productCount: rows.length })
-      .where(eq(categories.slug, slug));
+      .update(products)
+      .set({
+        name: p.name,
+        shortDescription: p.shortDescription,
+        description: p.description,
+        metaKeywords: p.metaKeywords ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(products.slug, p.slug));
   }
 
   /** 200 bulk catalog items for search / pagination / merchandising tests (idempotent by slug). */
-  const catSlugOrder = [
-    "vegetable-seeds",
-    "flower-herb-seeds",
-    "organic-manure",
-    "grow-bags",
-    "garden-tools",
-    "organic-groceries",
-  ];
   let bulkInserted = 0;
   for (let i = 1; i <= 200; i++) {
     const slug = `qa-bulk-${String(i).padStart(3, "0")}`;
     const [exists] = await db.select({ id: products.id }).from(products).where(eq(products.slug, slug)).limit(1);
     if (exists) continue;
-    const catSlug = catSlugOrder[(i - 1) % catSlugOrder.length]!;
-    const catId = catIds[catSlug]!;
+    const row = getBulkSeedRow(i);
+    const catId = catIds[row.cat]!;
     const price = String(29 + (i % 170));
+    const name = bulkDisplayName(i, row);
     const [created] = await db
       .insert(products)
       .values({
         categoryId: catId,
-        name: `QA Bulk Item ${i}`,
+        name,
         slug,
-        shortDescription: `Seed bulk product ${i} for QA load testing.`,
-        description: `<p>Bulk seed item ${i} — organic-friendly test SKU.</p>`,
+        shortDescription: row.short,
+        description: row.body,
+        metaKeywords: row.meta,
         price,
         sku: `QA-BULK-${String(i).padStart(4, "0")}`,
         stockQty: 50 + (i % 100),
@@ -308,23 +294,39 @@ async function main() {
       await db.insert(productImages).values({
         productId: created.id,
         url: PLACEHOLDER_IMAGE,
-        altText: `QA Bulk Item ${i}`,
+        altText: name,
         isPrimary: true,
         sortOrder: 0,
       });
     }
   }
-  if (bulkInserted > 0) {
-    for (const slug of Object.keys(catIds)) {
-      const rows = await db
-        .select({ id: products.id })
-        .from(products)
-        .where(eq(products.categoryId, catIds[slug]!));
-      await db
-        .update(categories)
-        .set({ productCount: rows.length })
-        .where(eq(categories.slug, slug));
-    }
+
+  for (let i = 1; i <= 200; i++) {
+    const slug = `qa-bulk-${String(i).padStart(3, "0")}`;
+    const row = getBulkSeedRow(i);
+    const name = bulkDisplayName(i, row);
+    await db
+      .update(products)
+      .set({
+        categoryId: catIds[row.cat]!,
+        name,
+        shortDescription: row.short,
+        description: row.body,
+        metaKeywords: row.meta,
+        updatedAt: new Date(),
+      })
+      .where(eq(products.slug, slug));
+  }
+
+  for (const slug of Object.keys(catIds)) {
+    const rows = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.categoryId, catIds[slug]!));
+    await db
+      .update(categories)
+      .set({ productCount: rows.length })
+      .where(eq(categories.slug, slug));
   }
 
   const couponDefs = [

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Menu, ShoppingCart, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,8 +73,10 @@ export function Header() {
           />
         </Link>
 
-        <div className="hidden max-w-xs flex-1 px-4 md:block">
-          <SearchBar />
+        <div className="hidden max-w-md flex-1 px-4 md:block">
+          <Suspense fallback={<div className="h-10 w-full rounded-md bg-accent-soft/80" aria-hidden />}>
+            <SearchBar />
+          </Suspense>
         </div>
 
         <nav className="hidden items-center gap-8 lg:flex">
@@ -125,6 +127,11 @@ export function Header() {
 
       {mobileOpen && (
         <nav className="border-t border-border/60 bg-surface/98 px-4 py-4 backdrop-blur-md md:hidden">
+          <div className="mb-4">
+            <Suspense fallback={<div className="h-10 w-full rounded-md bg-accent-soft/80" aria-hidden />}>
+              <SearchBar onFullResultsNavigate={() => setMobileOpen(false)} />
+            </Suspense>
+          </div>
           {navLinks.map((link) => (
             <Link
               key={link.href}

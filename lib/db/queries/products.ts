@@ -16,7 +16,7 @@ import {
   productImages,
   products,
 } from "@/lib/db/schema";
-import { buildRelevanceScoreSql } from "@/lib/merchandising/relevance-sql";
+import { buildRelevanceScoreSql, escapeIlikePatternFragment } from "@/lib/merchandising/relevance-sql";
 import { resolveRankingWeightsForRequest } from "@/lib/merchandising/resolve-weights";
 import type { RankingWeights } from "@/lib/merchandising/types";
 import { DEFAULT_RANKING_WEIGHTS } from "@/lib/merchandising/types";
@@ -64,11 +64,14 @@ export async function listProducts(query: ProductListQuery) {
   }
 
   if (search) {
+    const pattern = `%${escapeIlikePatternFragment(search)}%`;
     conditions.push(
       or(
-        ilike(products.name, `%${search}%`),
-        ilike(products.shortDescription, `%${search}%`),
-        ilike(products.sku, `%${search}%`),
+        ilike(products.name, pattern),
+        ilike(products.shortDescription, pattern),
+        ilike(products.sku, pattern),
+        ilike(products.description, pattern),
+        ilike(products.metaKeywords, pattern),
       )!,
     );
   }
@@ -183,6 +186,7 @@ export async function getProductBySlug(slug: string) {
 export async function searchProducts(term: string, limit = 8, weights?: RankingWeights) {
   const w = weights ?? (await resolveRankingWeightsForRequest().catch(() => DEFAULT_RANKING_WEIGHTS));
   const scoreSql = buildRelevanceScoreSql(term, w);
+  const pattern = `%${escapeIlikePatternFragment(term)}%`;
 
   return db
     .select({
@@ -205,8 +209,11 @@ export async function searchProducts(term: string, limit = 8, weights?: RankingW
         eq(products.isActive, true),
         isNull(products.deletedAt),
         or(
-          ilike(products.name, `%${term}%`),
-          ilike(products.sku, `%${term}%`),
+          ilike(products.name, pattern),
+          ilike(products.shortDescription, pattern),
+          ilike(products.sku, pattern),
+          ilike(products.description, pattern),
+          ilike(products.metaKeywords, pattern),
         ),
       ),
     )

@@ -29,7 +29,7 @@ export default function AdminMarketingPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="min-w-0 max-w-xl">
       <h1 className="font-display text-2xl font-bold">Marketing campaigns</h1>
       <p className="mt-2 text-sm text-text-secondary">
         Create campaigns with optional coupon codes. Scheduled WhatsApp broadcasts can be wired to Interakt when templates are approved.

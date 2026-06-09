@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { AdminTableShell, ADMIN_DATA_TABLE_CLASS } from "@/components/admin/AdminTableShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/utils";
 
 export default function AdminProductsPage() {
@@ -27,48 +30,45 @@ export default function AdminProductsPage() {
   }, []);
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
+    <div className="min-w-0">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-display text-2xl font-bold">Products</h1>
-        <a
-          href="/admin/products/new"
-          className="rounded-[8px] bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
-          Add product
-        </a>
+        <Button asChild className="w-full shrink-0 sm:w-auto">
+          <Link href="/admin/products/new">Add product</Link>
+        </Button>
       </div>
       <p className="mt-1 text-text-secondary">{products.length} products in catalog</p>
-      <div className="mt-6 overflow-x-auto rounded-[length:var(--radius-card)] border border-border bg-surface">
-        <table className="w-full text-sm">
+      <AdminTableShell className="mt-4 sm:mt-6">
+        <table className={ADMIN_DATA_TABLE_CLASS}>
           <thead>
             <tr className="border-b border-border bg-surface-subtle text-left text-text-secondary">
-              <th className="p-4">Name</th>
-              <th className="p-4">SKU</th>
-              <th className="p-4">Category</th>
-              <th className="p-4">Price</th>
-              <th className="p-4">Stock</th>
-              <th className="p-4">Status</th>
+              <th>Name</th>
+              <th>SKU</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {products.map((p) => (
               <tr key={p.id} className="border-b border-border/50">
-                <td className="p-4 font-medium">
-                  <a href={`/admin/products/${p.id}/edit`} className="hover:text-primary hover:underline">
+                <td className="font-medium">
+                  <Link href={`/admin/products/${p.id}/edit`} className="hover:text-primary hover:underline">
                     {p.name}
-                  </a>
+                  </Link>
                 </td>
-                <td className="p-4 font-mono text-xs">{p.sku}</td>
-                <td className="p-4">{p.categoryName}</td>
-                <td className="p-4">{formatINR(parseFloat(p.price))}</td>
-                <td className="p-4">
+                <td className="font-mono text-xs">{p.sku}</td>
+                <td>{p.categoryName}</td>
+                <td>{formatINR(parseFloat(p.price))}</td>
+                <td>
                   {p.lowStock ? (
                     <Badge variant="warning">{p.stockQty} left</Badge>
                   ) : (
                     p.stockQty
                   )}
                 </td>
-                <td className="p-4">
+                <td>
                   <Badge variant={p.isActive ? "success" : "outline"}>
                     {p.isActive ? "Active" : "Inactive"}
                   </Badge>
@@ -82,7 +82,7 @@ export default function AdminProductsPage() {
             No products. Run <code className="rounded bg-accent px-1">npm run seed</code> or sign in as admin.
           </p>
         )}
-      </div>
+      </AdminTableShell>
     </div>
   );
 }

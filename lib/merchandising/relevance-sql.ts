@@ -25,7 +25,7 @@ export function buildRelevanceScoreSql(searchTerm: string | undefined, w: Rankin
     : sql`0::double precision`;
 
   const descPart = pattern
-    ? sql`(CASE WHEN ${products.shortDescription} ILIKE ${pattern} THEN ${w.matchDescWeight}::double precision ELSE 0 END)`
+    ? sql`(CASE WHEN ${products.shortDescription} ILIKE ${pattern} OR ${products.description} ILIKE ${pattern} OR COALESCE(${products.metaKeywords}, '') ILIKE ${pattern} THEN ${w.matchDescWeight}::double precision ELSE 0 END)`
     : sql`0::double precision`;
 
   const skuPart = pattern
