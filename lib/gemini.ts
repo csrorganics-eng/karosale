@@ -3,13 +3,17 @@ import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from "@google/genera
 
 let client: GoogleGenerativeAI | null = null;
 
-/** Default when `GEMINI_MODEL` is unset (2.0 / 1.5 names often 404 on current v1beta). */
+/**
+ * Default when `GEMINI_MODEL` is unset.
+ * `gemini-2.5-flash` — best quality/speed balance for shop chat and tools.
+ * On 429/503 we fall back through `GEMINI_MODEL_FALLBACK_CHAIN` (often `flash-lite` has headroom).
+ */
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
+/** Tried after the preferred model; 404 or rate-limit triggers next entry. */
 export const GEMINI_MODEL_FALLBACK_CHAIN = [
-  "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
-  "gemini-3.5-flash",
+  "gemini-2.0-flash",
 ] as const;
 
 let geminiWorkingModelId: string | null = null;
@@ -34,6 +38,7 @@ export function buildGeminiModelCandidateIds(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const out: string[] = [];
   if (preferred) out.push(preferred);
+  else out.push(DEFAULT_GEMINI_MODEL);
   for (const m of GEMINI_MODEL_FALLBACK_CHAIN) {
     if (!out.includes(m)) out.push(m);
   }
@@ -124,6 +129,11 @@ export async function geminiGenerateContent(input: GeminiGenerateInput): Promise
       if (isGeminiModelNotFoundError(e)) {
         if (geminiWorkingModelId === modelId) geminiWorkingModelId = null;
         console.warn(`[gemini] Model "${modelId}" unavailable (404), trying next fallback…`);
+        continue;
+      }
+      if (isGeminiRateLimitError(e)) {
+        if (geminiWorkingModelId === modelId) geminiWorkingModelId = null;
+        console.warn(`[gemini] Model "${modelId}" rate limited or overloaded, trying next fallback…`);
         continue;
       }
       throw e;
