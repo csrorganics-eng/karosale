@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   try {
     await requireRole(["admin"]);
     if (!isGeminiConfigured()) {
-      return jsonError("GEMINI_API_KEY is not configured", 503);
+      return jsonError("Gemini API key is not configured on the server", 503);
     }
     const body = await request.json();
     const parsed = schema.safeParse(body);

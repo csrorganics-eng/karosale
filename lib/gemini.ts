@@ -22,8 +22,17 @@ export function resetGeminiWorkingModelCache(): void {
   geminiWorkingModelId = null;
 }
 
+/** First non-empty value wins (Vercel / local naming varies). */
+export function getGeminiApiKey(): string | undefined {
+  for (const name of ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_API_KEY"] as const) {
+    const v = process.env[name]?.trim();
+    if (v) return v;
+  }
+  return undefined;
+}
+
 export function isGeminiConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
+  return Boolean(getGeminiApiKey());
 }
 
 export function getGeminiModelName(): string {
@@ -82,8 +91,12 @@ export function geminiQuotaUserMessage(): string {
 
 function getClient(): GoogleGenerativeAI {
   if (!client) {
-    const apiKey = process.env.GEMINI_API_KEY?.trim();
-    if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      throw new Error(
+        "Gemini API key not configured (set GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY on the server).",
+      );
+    }
     client = new GoogleGenerativeAI(apiKey);
   }
   return client;

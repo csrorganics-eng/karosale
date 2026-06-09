@@ -18,10 +18,12 @@ function getOrCreateClientKey(): string {
   return k;
 }
 
+type ChatConfigState = "loading" | "ready" | "missing_key" | "fetch_error";
+
 export function ShopChatWidget() {
   const [open, setOpen] = useState(false);
-  /** null = still checking /api/chat/status; false = Gemini not configured; true = can chat */
-  const [assistantReady, setAssistantReady] = useState<boolean | null>(null);
+  const [configState, setConfigState] = useState<ChatConfigState>("loading");
+  const [statusDetail, setStatusDetail] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,30 +31,57 @@ export function ShopChatWidget() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    void fetch("/api/chat/status")
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.success && typeof j.data?.enabled === "boolean") setAssistantReady(j.data.enabled);
-        else setAssistantReady(false);
+  const loadAssistantStatus = useCallback(() => {
+    setConfigState("loading");
+    setStatusDetail(null);
+    void fetch("/api/chat/status", { cache: "no-store" })
+      .then(async (r) => {
+        const raw = await r.text();
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(raw) as { success?: boolean; data?: { enabled?: boolean } };
+        } catch {
+          setConfigState("fetch_error");
+          setStatusDetail("Server returned non-JSON (check deployment / middleware).");
+          return;
+        }
+        if (!r.ok) {
+          setConfigState("fetch_error");
+          setStatusDetail(`HTTP ${r.status}.`);
+          return;
+        }
+        const j = parsed;
+        if (j.success === true && typeof j.data?.enabled === "boolean") {
+          setConfigState(j.data.enabled ? "ready" : "missing_key");
+          return;
+        }
+        setConfigState("fetch_error");
+        setStatusDetail("Unexpected /api/chat/status payload.");
       })
-      .catch(() => setAssistantReady(false));
+      .catch(() => {
+        setConfigState("fetch_error");
+        setStatusDetail("Network error.");
+      });
   }, []);
+
+  useEffect(() => {
+    loadAssistantStatus();
+  }, [loadAssistantStatus]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
   useEffect(() => {
-    if (open && assistantReady === true) {
+    if (open && configState === "ready") {
       const t = window.setTimeout(() => inputRef.current?.focus(), 0);
       return () => window.clearTimeout(t);
     }
-  }, [open, assistantReady]);
+  }, [open, configState]);
 
   const send = useCallback(async () => {
     const text = input.trim();
-    if (!text || loading || assistantReady !== true) return;
+    if (!text || loading || configState !== "ready") return;
     setInput("");
     setError(null);
     setMessages((m) => [...m, { role: "user", text }]);
@@ -63,6 +92,7 @@ export function ShopChatWidget() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientKey, message: text }),
+        cache: "no-store",
       });
       const json = (await res.json()) as {
         success?: boolean;
@@ -82,7 +112,9 @@ export function ShopChatWidget() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, assistantReady]);
+  }, [input, loading, configState]);
+
+  const assistantReady = configState === "ready";
 
   return (
     <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-2">
@@ -99,21 +131,46 @@ export function ShopChatWidget() {
             </Button>
           </div>
           <div className="flex-1 space-y-2 overflow-y-auto p-3 text-sm">
-            {assistantReady === null && (
+            {configState === "loading" && (
               <p className="text-text-secondary">Checking assistant availability…</p>
             )}
-            {assistantReady === false && (
-              <div className="space-y-2 rounded-lg bg-surface-subtle p-3 text-text-secondary">
-                <p className="font-medium text-text-primary">Assistant is offline</p>
-                <p>
-                  The floating chat is always visible, but replies need a server{" "}
-                  <code className="rounded bg-border/60 px-1 text-xs">GEMINI_API_KEY</code> (see{" "}
-                  <code className="rounded bg-border/60 px-1 text-xs">.env.example</code>). After you add it, restart
-                  the dev server or redeploy.
+            {configState === "fetch_error" && (
+              <div className="space-y-3 rounded-lg bg-surface-subtle p-3 text-text-secondary">
+                <p className="font-medium text-text-primary">Could not verify assistant</p>
+                <p className="text-xs">
+                  {statusDetail ?? "Request failed."} This is not the same as a missing API key — try again, or open{" "}
+                  <code className="rounded bg-border/60 px-1">/api/chat/status</code> in a new tab.
                 </p>
+                <Button type="button" size="sm" variant="secondary" onClick={() => loadAssistantStatus()}>
+                  Retry
+                </Button>
               </div>
             )}
-            {assistantReady === true && messages.length === 0 && (
+            {configState === "missing_key" && (
+              <div className="space-y-2 rounded-lg bg-surface-subtle p-3 text-text-secondary">
+                <p className="font-medium text-text-primary">Assistant is offline on this server</p>
+                <p className="text-xs leading-relaxed">
+                  The app did not find a Gemini API key in <strong>this</strong> environment. Set one of{" "}
+                  <code className="rounded bg-border/60 px-1">GEMINI_API_KEY</code>,{" "}
+                  <code className="rounded bg-border/60 px-1">GOOGLE_GENERATIVE_AI_API_KEY</code>, or{" "}
+                  <code className="rounded bg-border/60 px-1">GOOGLE_AI_API_KEY</code> (server-only, not{" "}
+                  <code className="rounded bg-border/60 px-1">NEXT_PUBLIC_*</code>).
+                </p>
+                <p className="text-xs leading-relaxed">
+                  <strong>Vercel:</strong> confirm the variable is enabled for the environment you are using (Preview vs
+                  Production), linked to this project, then <strong>Redeploy</strong>. Shared team variables work the
+                  same once linked.
+                </p>
+                <p className="text-xs leading-relaxed">
+                  <strong>Local:</strong> add to <code className="rounded bg-border/60 px-1">.env.local</code> and
+                  restart <code className="rounded bg-border/60 px-1">npm run dev</code>.
+                </p>
+                <Button type="button" size="sm" variant="secondary" onClick={() => loadAssistantStatus()}>
+                  Check again
+                </Button>
+              </div>
+            )}
+            {assistantReady && messages.length === 0 && (
               <p className="text-text-secondary">
                 Ask about products, delivery, or your recent orders (when signed in). I can connect you to a human if
                 needed.
@@ -146,12 +203,12 @@ export function ShopChatWidget() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={
-                assistantReady === true ? "Type a message…" : assistantReady === false ? "Configure GEMINI_API_KEY…" : "…"
+                assistantReady ? "Type a message…" : configState === "loading" ? "…" : "Assistant unavailable…"
               }
-              disabled={loading || assistantReady !== true}
+              disabled={loading || !assistantReady}
               className="text-sm"
             />
-            <Button type="submit" disabled={loading || !input.trim() || assistantReady !== true}>
+            <Button type="submit" disabled={loading || !input.trim() || !assistantReady}>
               Send
             </Button>
           </form>
