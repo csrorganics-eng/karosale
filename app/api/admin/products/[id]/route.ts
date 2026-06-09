@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { products } from "@/lib/db/schema";
+import { categories, products } from "@/lib/db/schema";
 import { createProductSchema } from "@/lib/validations/product";
 import { jsonOk, jsonError } from "@/lib/api-response";
 
@@ -12,9 +12,17 @@ export async function GET(
   try {
     await requireRole(["admin"]);
     const { id } = await params;
-    const [product] = await db.select().from(products).where(eq(products.id, id)).limit(1);
-    if (!product) return jsonError("Product not found", 404);
-    return jsonOk({ product });
+    const [row] = await db
+      .select({
+        product: products,
+        categoryName: categories.name,
+      })
+      .from(products)
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .where(eq(products.id, id))
+      .limit(1);
+    if (!row) return jsonError("Product not found", 404);
+    return jsonOk({ product: row.product, categoryName: row.categoryName });
   } catch (error) {
     if (error instanceof Error && (error.message === "Unauthorized" || error.message === "Forbidden")) {
       return jsonError(error.message, error.message === "Unauthorized" ? 401 : 403);

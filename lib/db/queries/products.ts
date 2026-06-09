@@ -20,6 +20,9 @@ import { buildRelevanceScoreSql, escapeIlikePatternFragment } from "@/lib/mercha
 import { resolveRankingWeightsForRequest } from "@/lib/merchandising/resolve-weights";
 import type { RankingWeights } from "@/lib/merchandising/types";
 import { DEFAULT_RANKING_WEIGHTS } from "@/lib/merchandising/types";
+import { isGeminiConfigured } from "@/lib/gemini";
+import { rerankProductIdsByQuery } from "@/lib/search/semantic-rerank";
+import { orderProductsByIdList } from "@/lib/db/queries/personalization";
 import type { productListQuerySchema } from "@/lib/validations/product";
 import type { z } from "zod";
 
@@ -129,16 +132,37 @@ export async function listProducts(query: ProductListQuery) {
       )
       .where(whereClause);
 
-  const items =
-    sort === "relevance"
-      ? await baseQuery()
-          .orderBy(desc(buildRelevanceScoreSql(search, weights)), desc(products.id))
-          .limit(limit)
-          .offset(offset)
-      : await baseQuery()
-          .orderBy(orderByNonRelevance)
-          .limit(limit)
-          .offset(offset);
+  const SEMANTIC_CANDIDATE_CAP = 64;
+  let items: Awaited<ReturnType<typeof baseQuery>>;
+
+  if (
+    sort === "relevance" &&
+    search?.trim() &&
+    page === 1 &&
+    isGeminiConfigured()
+  ) {
+    const rankedRows = await baseQuery()
+      .orderBy(desc(buildRelevanceScoreSql(search, weights)), desc(products.id))
+      .limit(SEMANTIC_CANDIDATE_CAP);
+    if (rankedRows.length > 0) {
+      const candidates = rankedRows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        shortDescription: r.shortDescription,
+      }));
+      const orderedIds = await rerankProductIdsByQuery(search.trim(), candidates);
+      items = orderProductsByIdList(rankedRows, orderedIds).slice(offset, offset + limit);
+    } else {
+      items = [];
+    }
+  } else if (sort === "relevance") {
+    items = await baseQuery()
+      .orderBy(desc(buildRelevanceScoreSql(search, weights)), desc(products.id))
+      .limit(limit)
+      .offset(offset);
+  } else {
+    items = await baseQuery().orderBy(orderByNonRelevance).limit(limit).offset(offset);
+  }
 
   const [countResult] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -187,14 +211,16 @@ export async function searchProducts(term: string, limit = 8, weights?: RankingW
   const w = weights ?? (await resolveRankingWeightsForRequest().catch(() => DEFAULT_RANKING_WEIGHTS));
   const scoreSql = buildRelevanceScoreSql(term, w);
   const pattern = `%${escapeIlikePatternFragment(term)}%`;
+  const pool = Math.max(limit * 4, 32);
 
-  return db
+  const rows = await db
     .select({
       id: products.id,
       name: products.name,
       slug: products.slug,
       price: products.price,
       imageUrl: productImages.url,
+      shortDescription: products.shortDescription,
     })
     .from(products)
     .leftJoin(
@@ -218,5 +244,33 @@ export async function searchProducts(term: string, limit = 8, weights?: RankingW
       ),
     )
     .orderBy(desc(scoreSql), desc(products.id))
-    .limit(limit);
+    .limit(pool);
+
+  const t = term.trim();
+  if (!t || !isGeminiConfigured()) {
+    return rows.slice(0, limit).map(({ id, name, slug, price, imageUrl }) => ({
+      id,
+      name,
+      slug,
+      price,
+      imageUrl,
+    }));
+  }
+
+  const orderedIds = await rerankProductIdsByQuery(
+    t,
+    rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      shortDescription: r.shortDescription,
+    })),
+  );
+  const ordered = orderProductsByIdList(rows, orderedIds).slice(0, limit);
+  return ordered.map(({ id, name, slug, price, imageUrl }) => ({
+    id,
+    name,
+    slug,
+    price,
+    imageUrl,
+  }));
 }

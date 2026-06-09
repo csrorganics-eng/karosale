@@ -25,6 +25,7 @@
 .env*.local
 !.env.example
 !.env.preview.example
+karosale_keys.txt
 
 # debug
 npm-debug.log*

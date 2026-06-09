@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { eq, desc, isNull, and } from "drizzle-orm";
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { categories, productImages, products } from "@/lib/db/schema";
 import { listActiveBundles } from "@/lib/db/queries/bundles";
 import { getPersonalizedPicksWithSources } from "@/lib/db/queries/personalization";
+import { enhancePersonalizedPicksWithGemini } from "@/lib/personalization/gemini-picks";
+import { tryRefreshUserGeminiProfile } from "@/lib/personalization/gemini-profile";
+import { isGeminiConfigured } from "@/lib/gemini";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { PersonalizedForYouRail } from "@/components/storefront/PersonalizedForYouRail";
 import { Button } from "@/components/ui/button";
@@ -52,7 +56,13 @@ async function getHomeData(userId?: string | null) {
 
   let personalizedPicks: Awaited<ReturnType<typeof getPersonalizedPicksWithSources>> = [];
   if (userId) {
-    personalizedPicks = await getPersonalizedPicksWithSources(userId, 8);
+    const base = await getPersonalizedPicksWithSources(userId, 8);
+    personalizedPicks = await enhancePersonalizedPicksWithGemini(userId, base);
+    if (isGeminiConfigured()) {
+      after(() => {
+        void tryRefreshUserGeminiProfile(userId).catch(() => {});
+      });
+    }
   }
 
   return { cats, bestsellers, bundles, personalizedPicks };

@@ -189,6 +189,10 @@ export const users = pgTable(
     deletedAt: timestamp("deleted_at", { mode: "date" }),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+    geminiPersonalizationProfile: jsonb("gemini_personalization_profile"),
+    geminiPersonalizationProfileAt: timestamp("gemini_personalization_profile_at", {
+      mode: "date",
+    }),
   },
   (table) => [
     uniqueIndex("users_email_idx").on(table.email),
@@ -1071,6 +1075,44 @@ export const b2bInquiries = pgTable(
   },
   (table) => [index("b2b_inquiries_status_idx").on(table.status)],
 );
+
+// --- Shop AI chat ---
+export const shopChatSessions = pgTable(
+  "shop_chat_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientKey: varchar("client_key", { length: 80 }).notNull().unique(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [index("shop_chat_sessions_user_id_idx").on(table.userId)],
+);
+
+export const shopChatMessages = pgTable(
+  "shop_chat_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => shopChatSessions.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 20 }).notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [index("shop_chat_messages_session_id_idx").on(table.sessionId)],
+);
+
+export const shopChatEscalations = pgTable("shop_chat_escalations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sessionId: uuid("session_id")
+    .notNull()
+    .references(() => shopChatSessions.id, { onDelete: "cascade" }),
+  userEmail: text("user_email"),
+  reason: text("reason").notNull(),
+  lastUserMessage: text("last_user_message"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
 
 // --- Relations ---
 export const usersRelations = relations(users, ({ one, many }) => ({

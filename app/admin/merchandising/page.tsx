@@ -40,9 +40,15 @@ const CONFIG_PLACEHOLDER = `Example (optional overrides only):
 
 export default function AdminMerchandisingPage() {
   const [settings, setSettings] = useState<SettingsResp | null>(null);
+  const [weightInputs, setWeightInputs] = useState<Record<keyof RankingWeights, string> | null>(null);
   const [rankMsg, setRankMsg] = useState<string | null>(null);
   const [experiments, setExperiments] = useState<ExperimentRow[]>([]);
   const [expMsg, setExpMsg] = useState<string | null>(null);
+  const [aiIntent, setAiIntent] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiExplain, setAiExplain] = useState<string | null>(null);
+  const [aiPatchJson, setAiPatchJson] = useState<string | null>(null);
+  const [aiMerged, setAiMerged] = useState<RankingWeights | null>(null);
 
   const load = useCallback(async () => {
     const [rs, re] = await Promise.all([
@@ -59,13 +65,23 @@ export default function AdminMerchandisingPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!settings) return;
+    setWeightInputs(
+      Object.fromEntries(RANKING_WEIGHT_KEYS.map((k) => [k, String(settings[k])])) as Record<
+        keyof RankingWeights,
+        string
+      >,
+    );
+  }, [settings]);
+
   async function saveRanking(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setRankMsg(null);
-    const fd = new FormData(e.currentTarget);
+    if (!weightInputs) return;
     const body: Record<string, number> = {};
     for (const k of RANKING_WEIGHT_KEYS) {
-      body[k] = parseFloat(String(fd.get(k) ?? "0"));
+      body[k] = parseFloat(String(weightInputs[k] ?? "0"));
     }
     const r = await fetch("/api/admin/search-ranking", {
       method: "PATCH",
@@ -131,7 +147,41 @@ export default function AdminMerchandisingPage() {
     void load();
   }
 
-  if (!settings) {
+  async function suggestRankingFromAi() {
+    setAiBusy(true);
+    setAiExplain(null);
+    setAiPatchJson(null);
+    setAiMerged(null);
+    try {
+      const r = await fetch("/api/admin/search-ranking/ai-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intent: aiIntent }),
+      });
+      const j = await r.json();
+      if (!j.success) {
+        setAiExplain(j.error ?? "Request failed");
+        return;
+      }
+      setAiExplain(String(j.data?.explanation ?? ""));
+      setAiPatchJson(JSON.stringify(j.data?.patch ?? {}, null, 2));
+      setAiMerged(j.data?.mergedPreview ?? null);
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  function applyAiMergedToFields() {
+    if (!aiMerged) return;
+    setWeightInputs(
+      Object.fromEntries(RANKING_WEIGHT_KEYS.map((k) => [k, String(aiMerged[k])])) as Record<
+        keyof RankingWeights,
+        string
+      >,
+    );
+  }
+
+  if (!settings || !weightInputs) {
     return <p className="text-text-secondary">Loading…</p>;
   }
 
@@ -148,6 +198,48 @@ export default function AdminMerchandisingPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>AI assistant (Gemini) — ranking ideas</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-text-secondary">
+            Describe what you want search to favor. The model proposes a numeric patch only — use &quot;Apply to
+            fields&quot; then <strong>Save ranking weights</strong>.
+          </p>
+          <textarea
+            className="min-h-[88px] w-full rounded-[8px] border border-border bg-surface p-3 text-sm"
+            value={aiIntent}
+            onChange={(e) => setAiIntent(e.target.value)}
+            placeholder="e.g. Boost matches in short descriptions for Hindi transliterations"
+          />
+          <Button
+            type="button"
+            disabled={aiBusy || aiIntent.trim().length < 3}
+            onClick={() => void suggestRankingFromAi()}
+          >
+            {aiBusy ? "Thinking…" : "Get suggestion"}
+          </Button>
+          {aiExplain && (
+            <div className="rounded-md border border-border bg-surface-subtle p-3">
+              <p className="text-xs font-medium text-text-secondary">Explanation</p>
+              <p className="mt-1 whitespace-pre-wrap">{aiExplain}</p>
+            </div>
+          )}
+          {aiPatchJson && (
+            <div>
+              <p className="text-xs font-medium text-text-secondary">Suggested patch (JSON)</p>
+              <pre className="mt-1 max-h-40 overflow-auto rounded bg-surface-subtle p-2 text-xs">{aiPatchJson}</pre>
+            </div>
+          )}
+          {aiMerged && (
+            <Button type="button" variant="secondary" onClick={applyAiMergedToFields}>
+              Apply merged preview to fields below
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Global ranking weights</CardTitle>
         </CardHeader>
         <CardContent>
@@ -160,7 +252,10 @@ export default function AdminMerchandisingPage() {
                   name={k}
                   type="number"
                   step="any"
-                  defaultValue={settings[k]}
+                  value={weightInputs[k]}
+                  onChange={(e) =>
+                    setWeightInputs((prev) => (prev ? { ...prev, [k]: e.target.value } : prev))
+                  }
                   required
                 />
               </div>

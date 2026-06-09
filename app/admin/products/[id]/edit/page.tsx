@@ -10,7 +10,9 @@ export default function AdminEditProductPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [form, setForm] = useState<Record<string, string>>({});
+  const [categoryName, setCategoryName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [geminiLoading, setGeminiLoading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/products/${id}`)
@@ -18,6 +20,7 @@ export default function AdminEditProductPage() {
       .then((json) => {
         if (json.success) {
           const p = json.data.product;
+          setCategoryName(String(json.data.categoryName ?? ""));
           setForm({
             name: p.name,
             slug: p.slug,
@@ -67,6 +70,34 @@ export default function AdminEditProductPage() {
     }
   }
 
+  async function draftWithGemini() {
+    setGeminiLoading(true);
+    try {
+      const res = await fetch("/api/admin/products/ai-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          category: categoryName || "Groceries",
+          features: [],
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const copy = json.data?.copy as { shortDescription?: string; description?: string };
+        setForm((f) => ({
+          ...f,
+          shortDescription: copy.shortDescription ?? f.shortDescription ?? "",
+          description: copy.description ?? f.description ?? "",
+        }));
+      } else {
+        alert(json.error ?? "Gemini unavailable — set GEMINI_API_KEY");
+      }
+    } finally {
+      setGeminiLoading(false);
+    }
+  }
+
   return (
     <div className="min-w-0">
       <Link href="/admin/products" className="text-sm text-primary hover:underline">
@@ -85,8 +116,11 @@ export default function AdminEditProductPage() {
           </div>
         ))}
         <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" disabled={geminiLoading} onClick={() => void draftWithGemini()}>
+            {geminiLoading ? "Gemini…" : "Draft with Gemini"}
+          </Button>
           <Button type="button" variant="outline" onClick={generateAi}>
-            Generate AI description
+            Generate description (OpenAI)
           </Button>
           <Button type="submit" disabled={loading}>
             Save changes
