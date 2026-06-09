@@ -21,7 +21,24 @@ const bodySchema = z.object({
 
 const rate = new Map<string, number[]>();
 
-function rateLimitOk(key: string, max = 6, windowMs = 60_000): boolean {
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+/** In-memory per-instance limit (serverless: resets per warm instance). */
+function getChatRateLimit(): { max: number; windowMs: number } {
+  const windowMs = parsePositiveInt(process.env.CHAT_RATE_LIMIT_WINDOW_MS, 60_000);
+  const fromEnv = process.env.CHAT_RATE_LIMIT_MAX?.trim();
+  if (fromEnv) {
+    return { max: parsePositiveInt(fromEnv, 40), windowMs };
+  }
+  const dev = process.env.NODE_ENV === "development";
+  return { max: dev ? 120 : 40, windowMs };
+}
+
+function rateLimitOk(key: string): boolean {
+  const { max, windowMs } = getChatRateLimit();
   const now = Date.now();
   const arr = rate.get(key) ?? [];
   const fresh = arr.filter((t) => now - t < windowMs);

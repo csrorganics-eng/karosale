@@ -20,30 +20,39 @@ function getOrCreateClientKey(): string {
 
 export function ShopChatWidget() {
   const [open, setOpen] = useState(false);
-  const [enabled, setEnabled] = useState<boolean | null>(null);
+  /** null = still checking /api/chat/status; false = Gemini not configured; true = can chat */
+  const [assistantReady, setAssistantReady] = useState<boolean | null>(null);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void fetch("/api/chat/status")
       .then((r) => r.json())
       .then((j) => {
-        if (j.success && typeof j.data?.enabled === "boolean") setEnabled(j.data.enabled);
-        else setEnabled(false);
+        if (j.success && typeof j.data?.enabled === "boolean") setAssistantReady(j.data.enabled);
+        else setAssistantReady(false);
       })
-      .catch(() => setEnabled(false));
+      .catch(() => setAssistantReady(false));
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
+  useEffect(() => {
+    if (open && assistantReady === true) {
+      const t = window.setTimeout(() => inputRef.current?.focus(), 0);
+      return () => window.clearTimeout(t);
+    }
+  }, [open, assistantReady]);
+
   const send = useCallback(async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || assistantReady !== true) return;
     setInput("");
     setError(null);
     setMessages((m) => [...m, { role: "user", text }]);
@@ -55,9 +64,15 @@ export function ShopChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientKey, message: text }),
       });
-      const json = await res.json();
+      const json = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        data?: { reply?: string };
+      };
       if (!json.success) {
-        setError(typeof json.error === "string" ? json.error : "Something went wrong");
+        const msg =
+          typeof json.error === "string" ? json.error : res.status === 429 ? "Too many requests" : "Something went wrong";
+        setError(msg);
         return;
       }
       const reply = String(json.data?.reply ?? "");
@@ -67,12 +82,10 @@ export function ShopChatWidget() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading]);
-
-  if (enabled !== true) return null;
+  }, [input, loading, assistantReady]);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
+    <div className="pointer-events-auto fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-2">
       {open && (
         <div
           className={cn(
@@ -86,7 +99,21 @@ export function ShopChatWidget() {
             </Button>
           </div>
           <div className="flex-1 space-y-2 overflow-y-auto p-3 text-sm">
-            {messages.length === 0 && (
+            {assistantReady === null && (
+              <p className="text-text-secondary">Checking assistant availability…</p>
+            )}
+            {assistantReady === false && (
+              <div className="space-y-2 rounded-lg bg-surface-subtle p-3 text-text-secondary">
+                <p className="font-medium text-text-primary">Assistant is offline</p>
+                <p>
+                  The floating chat is always visible, but replies need a server{" "}
+                  <code className="rounded bg-border/60 px-1 text-xs">GEMINI_API_KEY</code> (see{" "}
+                  <code className="rounded bg-border/60 px-1 text-xs">.env.example</code>). After you add it, restart
+                  the dev server or redeploy.
+                </p>
+              </div>
+            )}
+            {assistantReady === true && messages.length === 0 && (
               <p className="text-text-secondary">
                 Ask about products, delivery, or your recent orders (when signed in). I can connect you to a human if
                 needed.
@@ -94,7 +121,7 @@ export function ShopChatWidget() {
             )}
             {messages.map((m, i) => (
               <div
-                key={`${i}-${m.role}`}
+                key={`${i}-${m.role}-${m.text.slice(0, 12)}`}
                 className={cn(
                   "max-w-[95%] rounded-lg px-3 py-2",
                   m.role === "user" ? "ml-auto bg-primary/15 text-right" : "mr-auto bg-surface-subtle",
@@ -104,7 +131,7 @@ export function ShopChatWidget() {
               </div>
             ))}
             {loading && <p className="text-text-secondary">Thinking…</p>}
-            {error && <p className="text-destructive">{error}</p>}
+            {error && <p className="text-destructive text-xs">{error}</p>}
             <div ref={bottomRef} />
           </div>
           <form
@@ -115,13 +142,16 @@ export function ShopChatWidget() {
             }}
           >
             <Input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type a message…"
-              disabled={loading}
+              placeholder={
+                assistantReady === true ? "Type a message…" : assistantReady === false ? "Configure GEMINI_API_KEY…" : "…"
+              }
+              disabled={loading || assistantReady !== true}
               className="text-sm"
             />
-            <Button type="submit" disabled={loading || !input.trim()}>
+            <Button type="submit" disabled={loading || !input.trim() || assistantReady !== true}>
               Send
             </Button>
           </form>
@@ -129,10 +159,11 @@ export function ShopChatWidget() {
       )}
       <Button
         type="button"
+        variant="default"
         size="icon"
-        className="h-12 w-12 rounded-full shadow-md"
+        className="h-12 w-12 shrink-0 rounded-full shadow-md"
         onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Close chat" : "Open chat"}
+        aria-label={open ? "Close chat" : "Open shop assistant chat"}
       >
         {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
       </Button>
