@@ -27,8 +27,10 @@ export const createProductSchema = z.object({
   shortDescription: z.string().min(10),
   description: z.string().min(10),
   price: z.number().positive(),
-  comparePrice: z.number().positive().optional(),
-  costPrice: z.number().positive().optional(),
+  comparePrice: z.number().positive().optional().nullable(),
+  costPrice: z.number().positive().optional().nullable(),
+  /** Optional 0–100 for “X% off” badge; MRP still comes from comparePrice when set. */
+  promotionalDiscountPct: z.number().min(0).max(100).optional().nullable(),
   sku: z.string().min(1).max(100),
   stockQty: z.number().int().min(0),
   lowStockThreshold: z.number().int().min(0).default(10),

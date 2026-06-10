@@ -363,6 +363,8 @@ export const products = pgTable(
     aiDescription: text("ai_description"),
     price: decimal("price", { precision: 10, scale: 2 }).notNull(),
     comparePrice: decimal("compare_price", { precision: 10, scale: 2 }),
+    /** Optional merchandising % off (0–100). Shown on cards when set; MRP/compare still drives strike-through. */
+    promotionalDiscountPct: decimal("promotional_discount_pct", { precision: 5, scale: 2 }),
     costPrice: decimal("cost_price", { precision: 10, scale: 2 }),
     sku: varchar("sku", { length: 100 }).notNull(),
     barcode: varchar("barcode", { length: 100 }),

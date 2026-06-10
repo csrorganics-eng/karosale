@@ -55,6 +55,11 @@ export default async function ShopPage({
   const searchTrimmed = search?.trim();
   const isSearchMode = Boolean(searchTrimmed);
 
+  const rangeStart = total > 0 && items.length > 0 ? (page - 1) * limit + 1 : null;
+  const rangeEnd =
+    total > 0 && items.length > 0 && rangeStart != null ? rangeStart + items.length - 1 : null;
+  const fmt = (n: number) => n.toLocaleString("en-IN");
+
   const linkBase = {
     q: searchTrimmed,
     category,
@@ -70,40 +75,61 @@ export default async function ShopPage({
           {isSearchMode ? (
             <>
               <h1 className="font-display text-3xl font-bold text-text-primary">Search results</h1>
-              <p className="mt-1 text-text-secondary">
-                <span className="text-text-primary">“{searchTrimmed}”</span>
-                {" · "}
+              <p className="mt-1 text-sm leading-relaxed text-text-secondary md:text-base">
+                <span className="font-medium text-text-primary">“{searchTrimmed}”</span>
                 {total === 0 ? (
-                  "No products matched."
-                ) : (
-                  <>
-                    Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total} product
-                    {total === 1 ? "" : "s"}
-                  </>
-                )}
+                  <span className="block pt-0.5">No products matched.</span>
+                ) : rangeStart != null && rangeEnd != null ? (
+                  <span className="block pt-0.5">
+                    <span className="tabular-nums text-text-primary">
+                      {fmt(rangeStart)}–{fmt(rangeEnd)}
+                    </span>
+                    {" of "}
+                    <span className="font-medium tabular-nums text-text-primary">{fmt(total)}</span>
+                    {total === 1 ? " product" : " products"}
+                  </span>
+                ) : null}
               </p>
             </>
           ) : (
             <>
-              <h1 className="font-display text-3xl font-bold text-text-primary">Shop</h1>
-              <p className="mt-1 text-text-secondary">
-                Showing {items.length} of {total} products
+              <h1 className="font-display text-3xl font-bold text-text-primary">
+                {isOrganic ? "Organic shop" : "Shop"}
+              </h1>
+              <p className="mt-1 text-sm leading-relaxed text-text-secondary md:text-base">
+                {total === 0 ? (
+                  "No products in this view."
+                ) : items.length === 0 ? (
+                  "Nothing on this page—try another page or adjust filters."
+                ) : rangeStart != null && rangeEnd != null ? (
+                  <>
+                    <span className="tabular-nums text-text-primary">
+                      {fmt(rangeStart)}–{fmt(rangeEnd)}
+                    </span>
+                    {" of "}
+                    <span className="font-medium tabular-nums text-text-primary">{fmt(total)}</span>
+                    {total === 1 ? " product" : " products"}
+                    {isOrganic ? (
+                      <span className="text-text-secondary"> · Certified organic catalogue</span>
+                    ) : null}
+                  </>
+                ) : null}
               </p>
             </>
           )}
         </div>
-        <form className="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" action="/shop" method="get">
-          <input
-            name="q"
-            defaultValue={search ?? ""}
-            placeholder="Search products…"
-            className="h-10 min-w-0 flex-1 rounded-[8px] border border-border px-3 text-sm"
-            aria-label="Search products"
-          />
+        <form
+          className="flex w-full max-w-md flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
+          action="/shop"
+          method="get"
+        >
+          {isSearchMode && searchTrimmed ? (
+            <input type="hidden" name="q" value={searchTrimmed} />
+          ) : null}
           <select
             name="sort"
             defaultValue={sort}
-            className="h-10 rounded-[8px] border border-border px-3 text-sm sm:w-44"
+            className="h-10 min-w-0 flex-1 rounded-[8px] border border-border px-3 text-sm sm:max-w-[11rem] sm:flex-none"
             aria-label="Sort order"
           >
             <option value="relevance">Relevance</option>
@@ -170,8 +196,8 @@ export default async function ShopPage({
               </Link>
             </Button>
           )}
-          <span className="px-3 text-sm text-text-secondary">
-            Page {page} of {totalPages}
+          <span className="px-3 text-sm tabular-nums text-text-secondary">
+            Page {page.toLocaleString("en-IN")} of {totalPages.toLocaleString("en-IN")}
           </span>
           {page < totalPages && (
             <Button variant="outline" asChild>

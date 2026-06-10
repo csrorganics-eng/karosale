@@ -39,6 +39,7 @@ export async function getProductsByIdsForCards(productIds: string[]) {
       slug: products.slug,
       price: products.price,
       comparePrice: products.comparePrice,
+      promotionalDiscountPct: products.promotionalDiscountPct,
       stockQty: products.stockQty,
       lowStockThreshold: products.lowStockThreshold,
       isOrganicCertified: products.isOrganicCertified,

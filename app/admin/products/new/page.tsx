@@ -18,8 +18,11 @@ export default function AdminNewProductPage() {
     shortDescription: "",
     description: "",
     price: "",
+    comparePrice: "",
+    promotionalDiscountPct: "",
     sku: "",
     stockQty: "0",
+    isOrganicCertified: true,
   });
   const [featuresNotes, setFeaturesNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -91,8 +94,12 @@ export default function AdminNewProductPage() {
       body: JSON.stringify({
         ...form,
         price: parseFloat(form.price),
+        comparePrice: form.comparePrice.trim() ? parseFloat(form.comparePrice) : undefined,
+        promotionalDiscountPct: form.promotionalDiscountPct.trim()
+          ? parseFloat(form.promotionalDiscountPct)
+          : undefined,
         stockQty: parseInt(form.stockQty, 10),
-        isOrganicCertified: true,
+        isOrganicCertified: form.isOrganicCertified,
         isActive: true,
       }),
     });
@@ -192,17 +199,51 @@ export default function AdminNewProductPage() {
             minLength={10}
           />
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-sm font-medium">Selling price (₹)</label>
+            <Input
+              className="mt-1"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              type="number"
+              step="0.01"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">MRP (₹, optional)</label>
+            <Input
+              className="mt-1"
+              value={form.comparePrice}
+              onChange={(e) => setForm({ ...form, comparePrice: e.target.value })}
+              type="number"
+              step="0.01"
+              placeholder="Strike-through on storefront"
+            />
+          </div>
+        </div>
         <div>
-          <label className="text-sm font-medium">Price</label>
+          <label className="text-sm font-medium">Display discount % (optional)</label>
           <Input
             className="mt-1"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
+            value={form.promotionalDiscountPct}
+            onChange={(e) => setForm({ ...form, promotionalDiscountPct: e.target.value })}
             type="number"
-            step="0.01"
-            required
+            step="0.1"
+            min="0"
+            max="100"
+            placeholder="Badge % — leave empty to use MRP math only"
           />
         </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.isOrganicCertified}
+            onChange={(e) => setForm({ ...form, isOrganicCertified: e.target.checked })}
+          />
+          Organic certified
+        </label>
         <div>
           <label className="text-sm font-medium">Stock qty</label>
           <Input

@@ -49,11 +49,28 @@ export async function PUT(
         ...(data.name && { name: data.name }),
         ...(data.slug && { slug: data.slug }),
         ...(data.categoryId && { categoryId: data.categoryId }),
-        ...(data.shortDescription && { shortDescription: data.shortDescription }),
-        ...(data.description && { description: data.description }),
+        ...(data.shortDescription !== undefined && { shortDescription: data.shortDescription }),
+        ...(data.description !== undefined && { description: data.description }),
         ...(data.price !== undefined && { price: String(data.price) }),
+        ...(data.comparePrice !== undefined && {
+          comparePrice: data.comparePrice != null ? String(data.comparePrice) : null,
+        }),
+        ...(data.promotionalDiscountPct !== undefined && {
+          promotionalDiscountPct:
+            data.promotionalDiscountPct != null && data.promotionalDiscountPct > 0
+              ? String(data.promotionalDiscountPct)
+              : null,
+        }),
+        ...(data.costPrice !== undefined && {
+          costPrice: data.costPrice != null ? String(data.costPrice) : null,
+        }),
         ...(data.stockQty !== undefined && { stockQty: data.stockQty }),
+        ...(data.lowStockThreshold !== undefined && { lowStockThreshold: data.lowStockThreshold }),
+        ...(data.sku !== undefined && { sku: data.sku }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.isOrganicCertified !== undefined && { isOrganicCertified: data.isOrganicCertified }),
+        ...(data.isBestseller !== undefined && { isBestseller: data.isBestseller }),
+        ...(data.isFeatured !== undefined && { isFeatured: data.isFeatured }),
         updatedAt: new Date(),
       })
       .where(eq(products.id, id))

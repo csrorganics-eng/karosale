@@ -31,6 +31,7 @@ async function getHomeData(userId?: string | null) {
       slug: products.slug,
       price: products.price,
       comparePrice: products.comparePrice,
+      promotionalDiscountPct: products.promotionalDiscountPct,
       stockQty: products.stockQty,
       lowStockThreshold: products.lowStockThreshold,
       isOrganicCertified: products.isOrganicCertified,

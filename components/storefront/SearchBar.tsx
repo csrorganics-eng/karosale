@@ -60,9 +60,22 @@ export function SearchBar({
         const res = await fetch(`/api/products/search?q=${encodeURIComponent(term)}`, {
           signal: ac.signal,
         });
-        const json = (await res.json()) as { success?: boolean; data?: { results?: SearchHit[] } };
-        if (json.success) setResults(json.data?.results ?? []);
-        else setResults([]);
+        const json = (await res.json()) as { success?: boolean; data?: { results?: unknown } };
+        if (!json.success) {
+          setResults([]);
+        } else {
+          const raw = json.data?.results;
+          const list = Array.isArray(raw) ? raw : [];
+          setResults(
+            list.map((p) => ({
+              id: String((p as SearchHit).id ?? ""),
+              name: String((p as SearchHit).name ?? ""),
+              slug: String((p as SearchHit).slug ?? ""),
+              price: String((p as SearchHit).price ?? "0"),
+              imageUrl: (p as SearchHit).imageUrl ?? null,
+            })),
+          );
+        }
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
         setResults([]);
@@ -126,6 +139,13 @@ export function SearchBar({
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              const term = q.trim();
+              if (!term) return;
+              e.preventDefault();
+              goToFullResults();
+            }}
             placeholder="Search products…"
             className="pl-9 pr-2"
             autoComplete="off"

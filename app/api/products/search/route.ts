@@ -12,12 +12,21 @@ export async function GET(request: Request) {
     const parsed = schema.safeParse({ q });
     if (!parsed.success) return jsonError("Invalid search query", 400);
 
-    const results = await searchProducts(parsed.data.q, 8);
+    const rows = await searchProducts(parsed.data.q, 8);
 
     await db.insert(searchQueries).values({
       query: parsed.data.q,
-      resultsCount: results.length,
+      resultsCount: rows.length,
     });
+
+    // Plain JSON shapes only (avoids odd client / devtool serialization with Drizzle decimals).
+    const results = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      price: String(r.price),
+      imageUrl: r.imageUrl ?? null,
+    }));
 
     return jsonOk({ results });
   } catch (error) {

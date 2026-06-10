@@ -35,6 +35,7 @@ const productCardSelect = {
   shortDescription: products.shortDescription,
   price: products.price,
   comparePrice: products.comparePrice,
+  promotionalDiscountPct: products.promotionalDiscountPct,
   stockQty: products.stockQty,
   lowStockThreshold: products.lowStockThreshold,
   isOrganicCertified: products.isOrganicCertified,

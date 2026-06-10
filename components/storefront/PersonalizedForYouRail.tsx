@@ -89,18 +89,7 @@ export function PersonalizedForYouRail({
                 key={card.id}
                 className="w-[min(42vw,16.5rem)] shrink-0 snap-start md:w-auto md:min-w-0"
               >
-                <div className="relative">
-                  {source === "recent" ? (
-                    <span className="absolute left-2 top-2 z-10 rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground shadow-[var(--shadow-soft)]">
-                      Recently viewed
-                    </span>
-                  ) : (
-                    <span className="absolute left-2 top-2 z-10 rounded-full border border-primary/15 bg-surface/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary shadow-sm backdrop-blur-sm">
-                      Inspired by you
-                    </span>
-                  )}
-                  <ProductCard {...card} />
-                </div>
+                <ProductCard {...card} personalizedContext={source === "recent" ? "recent" : "affinity"} />
               </div>
             ))}
           </div>

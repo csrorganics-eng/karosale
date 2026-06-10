@@ -70,6 +70,10 @@ export async function POST(request: Request) {
         sku: data.sku,
         stockQty: data.stockQty,
         lowStockThreshold: data.lowStockThreshold,
+        promotionalDiscountPct:
+          data.promotionalDiscountPct != null && data.promotionalDiscountPct > 0
+            ? String(data.promotionalDiscountPct)
+            : null,
         isOrganicCertified: data.isOrganicCertified,
         isFeatured: data.isFeatured,
         isBestseller: data.isBestseller,
