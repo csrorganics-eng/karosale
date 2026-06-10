@@ -34,7 +34,8 @@ function getChatRateLimit(): { max: number; windowMs: number } {
     return { max: parsePositiveInt(fromEnv, 40), windowMs };
   }
   const dev = process.env.NODE_ENV === "development";
-  return { max: dev ? 120 : 40, windowMs };
+  // Allow ~15+ shopper turns/minute; each turn is usually 1 generateContent (catalog search no longer doubles Gemini).
+  return { max: dev ? 120 : 72, windowMs };
 }
 
 function rateLimitOk(key: string): boolean {
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     const userEmail = session?.user?.email?.trim() || null;
 
     const row = await ensureShopChatSession(clientKey, userId);
-    const prior = await listRecentShopChatMessages(row.id, 20);
+    const prior = await listRecentShopChatMessages(row.id, 40);
     const priorForModel = prior
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role, content: m.content }));

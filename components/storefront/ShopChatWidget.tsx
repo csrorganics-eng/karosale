@@ -37,9 +37,10 @@ export function ShopChatWidget() {
     void fetch("/api/chat/status", { cache: "no-store" })
       .then(async (r) => {
         const raw = await r.text();
-        let parsed: unknown;
+        type StatusPayload = { success?: boolean; data?: { enabled?: boolean } };
+        let j: StatusPayload;
         try {
-          parsed = JSON.parse(raw) as { success?: boolean; data?: { enabled?: boolean } };
+          j = JSON.parse(raw) as StatusPayload;
         } catch {
           setConfigState("fetch_error");
           setStatusDetail("Server returned non-JSON (check deployment / middleware).");
@@ -50,7 +51,6 @@ export function ShopChatWidget() {
           setStatusDetail(`HTTP ${r.status}.`);
           return;
         }
-        const j = parsed;
         if (j.success === true && typeof j.data?.enabled === "boolean") {
           setConfigState(j.data.enabled ? "ready" : "missing_key");
           return;

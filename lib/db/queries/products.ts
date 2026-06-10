@@ -207,7 +207,13 @@ export async function getProductBySlug(slug: string) {
   return { product, images, category };
 }
 
-export async function searchProducts(term: string, limit = 8, weights?: RankingWeights) {
+export async function searchProducts(
+  term: string,
+  limit = 8,
+  weights?: RankingWeights,
+  /** When set, skips Gemini rerank (saves quota — use for shop-chat tool calls). */
+  options?: { skipSemanticRerank?: boolean },
+) {
   const w = weights ?? (await resolveRankingWeightsForRequest().catch(() => DEFAULT_RANKING_WEIGHTS));
   const scoreSql = buildRelevanceScoreSql(term, w);
   const pattern = `%${escapeIlikePatternFragment(term)}%`;
@@ -247,7 +253,8 @@ export async function searchProducts(term: string, limit = 8, weights?: RankingW
     .limit(pool);
 
   const t = term.trim();
-  if (!t || !isGeminiConfigured()) {
+  const skipRerank = options?.skipSemanticRerank === true;
+  if (!t || !isGeminiConfigured() || skipRerank) {
     return rows.slice(0, limit).map(({ id, name, slug, price, imageUrl }) => ({
       id,
       name,

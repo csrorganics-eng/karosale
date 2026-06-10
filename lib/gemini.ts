@@ -113,14 +113,14 @@ export function getGeminiGenerativeModel(options?: { model?: string; systemInstr
 }
 
 export type GeminiGenerateInput =
-  | { systemInstruction?: string; prompt: string }
-  | { systemInstruction?: string; contents: Content[]; tools?: Tool[] };
+  | { systemInstruction?: string; prompt: string; retryOnceOnRateLimit?: boolean }
+  | { systemInstruction?: string; contents: Content[]; tools?: Tool[]; retryOnceOnRateLimit?: boolean };
 
 function isPromptInput(x: GeminiGenerateInput): x is { systemInstruction?: string; prompt: string } {
   return "prompt" in x && typeof (x as { prompt?: unknown }).prompt === "string";
 }
 
-export async function geminiGenerateContent(input: GeminiGenerateInput): Promise<GenerateContentResult> {
+async function geminiGenerateContentOnce(input: GeminiGenerateInput): Promise<GenerateContentResult> {
   const systemInstruction = input.systemInstruction;
   const genRequest = isPromptInput(input)
     ? { contents: [{ role: "user", parts: [{ text: input.prompt }] }] as Content[] }
@@ -155,6 +155,19 @@ export async function geminiGenerateContent(input: GeminiGenerateInput): Promise
   throw lastErr instanceof Error
     ? lastErr
     : new Error("No Gemini model could be reached. Check GEMINI_MODEL and https://ai.google.dev/gemini-api/docs/models");
+}
+
+export async function geminiGenerateContent(input: GeminiGenerateInput): Promise<GenerateContentResult> {
+  try {
+    return await geminiGenerateContentOnce(input);
+  } catch (e) {
+    if (input.retryOnceOnRateLimit === true && isGeminiRateLimitError(e)) {
+      console.warn("[gemini] All model fallbacks rate-limited; waiting 2.2s and retrying once…");
+      await new Promise((r) => setTimeout(r, 2200));
+      return geminiGenerateContentOnce(input);
+    }
+    throw e;
+  }
 }
 
 export function parseJsonFromModelText(raw: string): unknown {
