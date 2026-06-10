@@ -7,12 +7,7 @@ import {
   listRecentShopChatMessages,
 } from "@/lib/db/queries/shop-chat";
 import { runShopChatAssistant } from "@/lib/chat/run-shop-chat";
-import {
-  isGeminiConfigured,
-  isGeminiModelNotFoundError,
-  isGeminiRateLimitError,
-  geminiQuotaUserMessage,
-} from "@/lib/gemini";
+import { isAiRouterConfigured } from "@/lib/ai-router";
 
 const bodySchema = z.object({
   clientKey: z.string().min(8).max(80),
@@ -34,7 +29,6 @@ function getChatRateLimit(): { max: number; windowMs: number } {
     return { max: parsePositiveInt(fromEnv, 40), windowMs };
   }
   const dev = process.env.NODE_ENV === "development";
-  // Allow ~15+ shopper turns/minute; each turn is usually 1 generateContent (catalog search no longer doubles Gemini).
   return { max: dev ? 120 : 72, windowMs };
 }
 
@@ -51,7 +45,7 @@ function rateLimitOk(key: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    if (!isGeminiConfigured()) {
+    if (!isAiRouterConfigured()) {
       return jsonError("Chat assistant is not configured", 503);
     }
 
@@ -75,25 +69,13 @@ export async function POST(request: Request) {
 
     await appendShopChatMessage(row.id, "user", message);
 
-    let reply: string;
-    try {
-      reply = await runShopChatAssistant({
-        sessionId: row.id,
-        userId,
-        userEmail,
-        message,
-        priorMessages: priorForModel,
-      });
-    } catch (e) {
-      if (isGeminiRateLimitError(e)) {
-        reply = geminiQuotaUserMessage();
-      } else if (isGeminiModelNotFoundError(e)) {
-        reply =
-          "The assistant could not load a working Gemini model. Remove GEMINI_MODEL or set gemini-2.5-flash. See https://ai.google.dev/gemini-api/docs/models";
-      } else {
-        throw e;
-      }
-    }
+    const reply = await runShopChatAssistant({
+      sessionId: row.id,
+      userId,
+      userEmail,
+      message,
+      priorMessages: priorForModel,
+    });
 
     await appendShopChatMessage(row.id, "assistant", reply);
 

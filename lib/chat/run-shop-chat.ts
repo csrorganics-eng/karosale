@@ -1,13 +1,11 @@
 import { desc, eq } from "drizzle-orm";
-import type { Content, FunctionCall, Tool } from "@google/generative-ai";
-import { SchemaType } from "@google/generative-ai";
 import {
-  geminiGenerateContent,
-  geminiQuotaUserMessage,
-  isGeminiConfigured,
-  isGeminiModelNotFoundError,
-  isGeminiRateLimitError,
-} from "@/lib/gemini";
+  isAiRouterExhausted,
+  routerChatCompletion,
+  routerQuotaUserMessage,
+  type AiMessage,
+  type AiTool,
+} from "@/lib/ai-router";
 import { getProductBySlug, searchProducts } from "@/lib/db/queries/products";
 import { db } from "@/lib/db";
 import { orders } from "@/lib/db/schema";
@@ -15,52 +13,60 @@ import { insertShopChatEscalation } from "@/lib/db/queries/shop-chat";
 import { sendEmail } from "@/lib/resend";
 import { BRAND_NAME } from "@/lib/brand";
 
-const shopTools = [
+const shopToolsOpenAI: AiTool[] = [
   {
-    functionDeclarations: [
-      {
-        name: "search_catalog",
-        description: "Search active products by keyword for the shopper.",
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            query: { type: SchemaType.STRING, description: "Search text" },
-          },
-          required: ["query"],
+    type: "function",
+    function: {
+      name: "search_catalog",
+      description: "Search active products by keyword for the shopper.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search text" },
         },
+        required: ["query"],
       },
-      {
-        name: "get_product_summary",
-        description: "Load one product by URL slug for details (price, stock, description snippet).",
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            slug: { type: SchemaType.STRING },
-          },
-          required: ["slug"],
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_product_summary",
+      description: "Load one product by URL slug for details (price, stock, description snippet).",
+      parameters: {
+        type: "object",
+        properties: {
+          slug: { type: "string" },
         },
+        required: ["slug"],
       },
-      {
-        name: "list_my_recent_orders",
-        description:
-          "List the signed-in customer's recent orders with id, status, total, date. Only works when the shopper is logged in.",
-        parameters: { type: SchemaType.OBJECT, properties: {}, required: [] },
-      },
-      {
-        name: "escalate_to_human",
-        description:
-          "When you cannot answer, policy requires a human, or the shopper asks for a person. Creates a support ticket and emails the store team.",
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            reason: { type: SchemaType.STRING },
-            shopper_message: { type: SchemaType.STRING },
-            shopper_email: { type: SchemaType.STRING, description: "optional" },
-          },
-          required: ["reason", "shopper_message"],
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_recent_orders",
+      description:
+        "List the signed-in customer's recent orders with id, status, total, date. Only works when the shopper is logged in.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "escalate_to_human",
+      description:
+        "When you cannot answer, policy requires a human, or the shopper asks for a person. Creates a support ticket and emails the store team.",
+      parameters: {
+        type: "object",
+        properties: {
+          reason: { type: "string" },
+          shopper_message: { type: "string" },
+          shopper_email: { type: "string", description: "optional" },
         },
+        required: ["reason", "shopper_message"],
       },
-    ],
+    },
   },
 ];
 
@@ -69,7 +75,7 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-/** Tool + model turns per shopper message (each turn is one generateContent). */
+/** Tool + model turns per shopper message (each turn is one chat completion). */
 function getMaxToolRounds(): number {
   return parsePositiveInt(process.env.CHAT_MAX_TOOL_ROUNDS, 6);
 }
@@ -82,7 +88,7 @@ async function runTool(
   switch (name) {
     case "search_catalog": {
       const q = typeof args.query === "string" ? args.query : "";
-      // Skip semantic rerank: chat already uses Gemini; rerank would double API calls and burn RPM quota.
+      // Skip semantic rerank: chat uses the multi-provider router; rerank would add extra Gemini calls.
       const hits = await searchProducts(q, 6, undefined, { skipSemanticRerank: true });
       return { results: hits };
     }
@@ -182,33 +188,6 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-const MAX_HISTORY_MESSAGES = 30;
-const MAX_HISTORY_CHARS_PER_MESSAGE = 900;
-
-function buildHistoryBlock(turns: { role: string; content: string }[]): string {
-  if (turns.length === 0) return "";
-  const slice = turns.slice(-MAX_HISTORY_MESSAGES);
-  const lines = slice.map((t) => {
-    const label = t.role === "user" ? "User" : "Assistant";
-    const body = (t.content ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_HISTORY_CHARS_PER_MESSAGE);
-    return `${label}: ${body}`;
-  });
-  return "Earlier in this chat:\n" + lines.join("\n") + "\n\n";
-}
-
-function describeBlockedResponse(response: Awaited<ReturnType<typeof geminiGenerateContent>>["response"]): string | null {
-  const c0 = response.candidates?.[0];
-  const fr = c0?.finishReason as string | undefined;
-  if (fr && fr !== "STOP" && fr !== "MAX_TOKENS" && fr !== "FINISH_REASON_UNSPECIFIED") {
-    return `The reply could not be completed (${fr}). Try rephrasing, or use shorter messages.`;
-  }
-  const block = response.promptFeedback?.blockReason as string | undefined;
-  if (block && block !== "BLOCK_REASON_UNSPECIFIED") {
-    return "That message could not be processed. Please rephrase and try again.";
-  }
-  return null;
-}
-
 export async function runShopChatAssistant(params: {
   sessionId: string;
   userId: string | null;
@@ -216,24 +195,30 @@ export async function runShopChatAssistant(params: {
   message: string;
   priorMessages: { role: string; content: string }[];
 }): Promise<string> {
-  if (!isGeminiConfigured()) {
-    return "Our assistant is offline right now. Please browse the catalog or email support from the site footer.";
-  }
-
   const systemInstruction = `You are ${BRAND_NAME}'s helpful shop assistant (organic groceries, India).
 Use tools when you need live catalog data or order status. Never invent SKU, price, or stock.
 If the shopper is not signed in, do not claim you can see their orders — suggest signing in.
 Keep replies concise and friendly. After escalate_to_human, reassure them an email was sent.
 Prefer a single search_catalog call with a clear query when exploring products; avoid repeated identical searches.`;
 
-  const history = buildHistoryBlock(params.priorMessages);
   const signed = params.userId
     ? `Shopper is signed in (user id: ${params.userId}).`
     : "Shopper is browsing as a guest.";
   const emailLine = params.userEmail ? `Email on file: ${params.userEmail}` : "";
+  const contextLine = `${signed} ${emailLine}`.trim();
 
-  const userText = `${history}${signed} ${emailLine}\n\nShopper: ${params.message}`;
-  let contents: Content[] = [{ role: "user", parts: [{ text: userText }] }];
+  const historyMessages: AiMessage[] = params.priorMessages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+  const messages: AiMessage[] = [
+    { role: "system", content: systemInstruction },
+    ...historyMessages,
+    { role: "user", content: contextLine ? `${contextLine}\n\nShopper: ${params.message}` : `Shopper: ${params.message}` },
+  ];
 
   const ctx = {
     userId: params.userId,
@@ -243,77 +228,51 @@ Prefer a single search_catalog call with a clear query when exploring products; 
 
   const maxRounds = getMaxToolRounds();
   for (let round = 0; round < maxRounds; round++) {
-    let res: Awaited<ReturnType<typeof geminiGenerateContent>>;
+    let result: Awaited<ReturnType<typeof routerChatCompletion>>;
     try {
-      res = await geminiGenerateContent({
-        systemInstruction,
-        contents,
-        tools: shopTools as Tool[],
-        retryOnceOnRateLimit: true,
-      });
+      result = await routerChatCompletion(messages, shopToolsOpenAI, { maxTokens: 1024 });
     } catch (e) {
-      if (isGeminiRateLimitError(e)) return geminiQuotaUserMessage();
-      if (isGeminiModelNotFoundError(e)) {
-        return (
-          "The assistant could not load a working Gemini model (invalid or retired model id). " +
-          "Remove GEMINI_MODEL or set it to a supported Flash model such as gemini-2.5-flash. " +
-          "See https://ai.google.dev/gemini-api/docs/models"
-        );
+      if (isAiRouterExhausted(e)) {
+        return routerQuotaUserMessage();
       }
-      console.error("[shop-chat] generateContent failed", e);
+      console.error("[shop-chat] routerChatCompletion failed", e);
       return "The assistant hit an unexpected error. Please try again in a moment.";
     }
 
-    const response = res.response;
-    const calls = response.functionCalls() as FunctionCall[] | undefined;
-
-    if (calls && calls.length > 0) {
-      const rawParts = response.candidates?.[0]?.content?.parts;
-      const functionParts =
-        rawParts?.filter((p): p is { functionCall: FunctionCall } => Boolean((p as { functionCall?: FunctionCall }).functionCall)) ??
-        [];
-      const modelParts =
-        functionParts.length > 0 ? functionParts : calls.map((c) => ({ functionCall: c }));
-
-      const responseParts = await Promise.all(
-        calls.map(async (fc) => {
-          const args = (fc.args ?? {}) as Record<string, unknown>;
-          const payload = await runTool(fc.name, args, ctx);
-          return {
-            functionResponse: {
-              name: fc.name,
-              response: payload,
-            },
+    if (result.toolCalls && result.toolCalls.length > 0) {
+      messages.push({
+        role: "assistant",
+        content: result.content,
+        tool_calls: result.toolCalls.map((tc) => ({
+          id: tc.id,
+          type: "function" as const,
+          function: { name: tc.name, arguments: tc.arguments },
+        })),
+      } as AiMessage);
+      for (const tc of result.toolCalls) {
+        let output: Record<string, unknown>;
+        try {
+          const args = JSON.parse(tc.arguments) as Record<string, unknown>;
+          output = await runTool(tc.name, args, ctx);
+        } catch (e) {
+          output = {
+            error: "invalid_arguments",
+            detail: e instanceof Error ? e.message : String(e),
           };
-        }),
-      );
-
-      contents = [
-        ...contents,
-        { role: "model", parts: modelParts },
-        { role: "user", parts: responseParts },
-      ];
+        }
+        messages.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify(output),
+        });
+      }
       continue;
     }
 
-    const blockedHint = describeBlockedResponse(response);
-    if (blockedHint) return blockedHint;
-
-    let text: string;
-    try {
-      text = response.text();
-    } catch (e) {
-      if (isGeminiRateLimitError(e)) return geminiQuotaUserMessage();
-      if (isGeminiModelNotFoundError(e)) {
-        return "The assistant could not load a working Gemini model. Check GEMINI_MODEL in your environment.";
-      }
-      const hint = describeBlockedResponse(response);
-      if (hint) return hint;
-      console.error("[shop-chat] response.text() failed", e);
-      return "The assistant could not read the model response. Please try again.";
-    }
-    return text.trim() || "Sorry, I could not generate a reply. Please try again.";
+    const text = result.content?.trim();
+    if (text) return text;
+    return "Sorry, I could not generate a reply. Please try again.";
   }
 
-  return "I had trouble finishing that request (too many tool steps). Please ask one thing at a time or try again.";
+  return "I wasn't able to complete that. Please try again.";
 }

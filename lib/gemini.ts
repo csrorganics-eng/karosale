@@ -14,6 +14,8 @@ export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 export const GEMINI_MODEL_FALLBACK_CHAIN = [
   "gemini-2.5-flash-lite",
   "gemini-2.0-flash",
+  /** Last resort: separate quota pool on many accounts (skipped automatically if 404). */
+  "gemini-1.5-flash",
 ] as const;
 
 let geminiWorkingModelId: string | null = null;
@@ -83,9 +85,11 @@ export function isGeminiRateLimitError(error: unknown): boolean {
 export function geminiQuotaUserMessage(): string {
   const model = getGeminiEffectiveModelName();
   return (
-    "Google Gemini is temporarily unavailable (rate limit or quota). " +
-    `Active model id: ${model}. Wait a minute and try again, or set GEMINI_MODEL to another supported Flash id ` +
-    "(e.g. gemini-2.5-flash-lite). See https://ai.dev/rate-limit and https://ai.google.dev/gemini-api/docs/models"
+    "Google Gemini is temporarily unavailable (rate limit, quota, or daily cap). " +
+    `Last tried model id: ${model}. ` +
+    "Per-minute limits recover within about a minute; **daily** caps reset at **midnight Pacific Time**. " +
+    "Check usage in Google AI Studio, enable billing for higher tiers, or set GEMINI_MODEL to another Flash id " +
+    "(e.g. gemini-2.5-flash-lite). See https://ai.dev/rate-limit and https://ai.google.dev/gemini-api/docs/rate-limits"
   );
 }
 
@@ -152,22 +156,51 @@ async function geminiGenerateContentOnce(input: GeminiGenerateInput): Promise<Ge
       throw e;
     }
   }
+  if (lastErr != null && isGeminiRateLimitError(lastErr)) {
+    resetGeminiWorkingModelCache();
+    console.warn("[gemini] All candidate models rate-limited for this request; cleared working-model cache.");
+  }
   throw lastErr instanceof Error
     ? lastErr
     : new Error("No Gemini model could be reached. Check GEMINI_MODEL and https://ai.google.dev/gemini-api/docs/models");
 }
 
+function parseRetryCount(raw: string | undefined, fallback: number, max: number): number {
+  const n = raw != null ? Number.parseInt(String(raw).trim(), 10) : NaN;
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.min(n, max);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export async function geminiGenerateContent(input: GeminiGenerateInput): Promise<GenerateContentResult> {
-  try {
-    return await geminiGenerateContentOnce(input);
-  } catch (e) {
-    if (input.retryOnceOnRateLimit === true && isGeminiRateLimitError(e)) {
-      console.warn("[gemini] All model fallbacks rate-limited; waiting 2.2s and retrying once…");
-      await new Promise((r) => setTimeout(r, 2200));
-      return geminiGenerateContentOnce(input);
+  /** Extra full model-chain attempts after a rate-limit failure (chat uses this). Default 1 → 2 tries total. */
+  const maxChainAttempts = input.retryOnceOnRateLimit
+    ? 1 + parseRetryCount(process.env.GEMINI_RATE_LIMIT_EXTRA_RETRIES, 1, 5)
+    : 1;
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < maxChainAttempts; attempt++) {
+    try {
+      return await geminiGenerateContentOnce(input);
+    } catch (e) {
+      lastErr = e;
+      const canRetry =
+        input.retryOnceOnRateLimit === true &&
+        isGeminiRateLimitError(e) &&
+        attempt < maxChainAttempts - 1;
+      if (!canRetry) throw e;
+      const delayMs = Math.min(2500 * 2 ** attempt, 30_000);
+      console.warn(
+        `[gemini] Rate limited after trying all model fallbacks (attempt ${attempt + 1}/${maxChainAttempts}); waiting ${delayMs}ms…`,
+      );
+      resetGeminiWorkingModelCache();
+      await sleep(delayMs);
     }
-    throw e;
   }
+  throw lastErr instanceof Error ? lastErr : new Error("Gemini request failed after retries.");
 }
 
 export function parseJsonFromModelText(raw: string): unknown {
