@@ -19,6 +19,36 @@ if (!url) {
 const sql = neon(url);
 const migrationsDir = join(process.cwd(), "lib/db/migrations");
 
+/**
+ * Neon HTTP driver runs one statement per call. Drizzle uses `--> statement-breakpoint`;
+ * hand-written files may use a single `;` between statements instead.
+ */
+function splitMigrationSql(content: string): string[] {
+  const trimmed = content.trim();
+  if (!trimmed) return [];
+
+  if (trimmed.includes("--> statement-breakpoint")) {
+    return trimmed
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  // Strip full-line SQL comments, then split on semicolon + newline (typical for small ALTER migrations).
+  const withoutLineComments = trimmed
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*--/.test(line))
+    .join("\n")
+    .trim();
+
+  const parts = withoutLineComments
+    .split(/;\s*(?:\r?\n|$)/)
+    .map((s) => s.trim().replace(/;+\s*$/, ""))
+    .filter(Boolean);
+
+  return parts.length > 0 ? parts : [withoutLineComments];
+}
+
 async function ensureLedgerTable() {
   await sql`
 CREATE TABLE IF NOT EXISTS _neon_sql_migrations (
@@ -96,10 +126,7 @@ async function main() {
     }
 
     const content = readFileSync(join(migrationsDir, file), "utf8");
-    const statements = content
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const statements = splitMigrationSql(content);
 
     console.log(`  ${file} (${statements.length} statements) — applying…`);
     for (const statement of statements) {

@@ -132,6 +132,13 @@ export default function AdminEditProductPage() {
         ← Products
       </Link>
       <h1 className="mt-4 font-display text-2xl font-bold">Edit product</h1>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" asChild>
+          <Link href={`/admin/marketing/new?productId=${encodeURIComponent(id)}`}>
+            Marketing &amp; promotions
+          </Link>
+        </Button>
+      </div>
       <form onSubmit={(e) => void submit(e)} className="mt-6 max-w-xl space-y-5">
         <div>
           <label className="text-sm font-medium">Name</label>

@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -9,6 +9,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  serial,
   smallint,
   text,
   timestamp,
@@ -1114,6 +1115,96 @@ export const shopChatEscalations = pgTable("shop_chat_escalations", {
   reason: text("reason").notNull(),
   lastUserMessage: text("last_user_message"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// --- AI Marketing Content Studio ---
+export const marketingCampaigns = pgTable(
+  "marketing_campaigns",
+  {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    postText: text("post_text").notNull(),
+    /** Shorter WhatsApp copy; when null, publish uses post_text as the base for WA. */
+    whatsappText: text("whatsapp_text"),
+    /** `product` = catalog SKU campaign; `event` = announcement with description (no product). */
+    campaignKind: text("campaign_kind").notNull().default("product"),
+    /** Linked catalog product when campaign_kind is product (optional for legacy rows). */
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    /** When campaign_kind is event: short headline stored with the campaign. */
+    eventTitle: text("event_title"),
+    eventDescription: text("event_description"),
+    /** Optional uploaded / external HTTPS image used as Flux reference for event campaigns. */
+    eventReferenceImageUrl: text("event_reference_image_url"),
+    /** Banner shape for optional banner: 16:9 | 9:16 | 1:1 */
+    bannerAspect: text("banner_aspect").notNull().default("16:9"),
+    imagePrompt: text("image_prompt"),
+    imageUrl: text("image_url"),
+    /** Optional wide banner (e.g. 1200×630) for link previews / Facebook. */
+    bannerImagePrompt: text("banner_image_prompt"),
+    bannerImageUrl: text("banner_image_url"),
+    /** Optional extra direction merged into Flux/Pollinations prompts on regenerate (not shown in post). */
+    imageRefinementPrompt: text("image_refinement_prompt"),
+    /** Storefront product URL (product campaigns); null for events. */
+    productPageUrl: text("product_page_url"),
+    /** Link-in-bio / ad landing URL — event: usually homepage; product: often same as product page or UTM variant. */
+    redirectUrl: text("redirect_url"),
+    platforms: text("platforms")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    status: text("status").notNull().default("draft"),
+    publishedAt: timestamp("published_at", { mode: "date" }),
+    facebookPostId: text("facebook_post_id"),
+    instagramPostId: text("instagram_post_id"),
+    whatsappRecipients: integer("whatsapp_recipients").default(0),
+    errorLog: text("error_log"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("marketing_campaigns_created_by_idx").on(table.createdBy),
+    index("marketing_campaigns_status_idx").on(table.status),
+    index("marketing_campaigns_product_id_idx").on(table.productId),
+  ],
+);
+
+export const socialConnections = pgTable(
+  "social_connections",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
+    accessToken: text("access_token").notNull(),
+    tokenExpiresAt: timestamp("token_expires_at", { mode: "date" }),
+    pageId: text("page_id"),
+    pageName: text("page_name"),
+    igUserId: text("ig_user_id"),
+    whatsappPhoneNumberId: text("whatsapp_phone_number_id"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("social_connections_user_provider_idx").on(table.userId, table.provider),
+    index("social_connections_user_id_idx").on(table.userId),
+  ],
+);
+
+export const whatsappRecipientGroups = pgTable("whatsapp_recipient_groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  phoneNumbers: text("phone_numbers")
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  description: text("description"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
 // --- Relations ---

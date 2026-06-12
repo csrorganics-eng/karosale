@@ -86,7 +86,7 @@ npm run db:migrate
 npm run seed
 ```
 
-Use the **pooled** Neon URL for the running app. If `npm run db:push` fails with connection errors, `db:migrate` uses Neon HTTP and is more reliable.
+Use the **pooled** Neon URL for the running app. On Neon hosts, **`npm run db:push`** now uses the same HTTP migration path as **`npm run db:migrate`** (reliable when TCP `drizzle-kit push` resets the connection).
 
 ---
 
@@ -98,7 +98,7 @@ On **Preview** only, after first deploy:
    - `SEED_DATABASE=true` (only for one deploy, then remove)
 2. Or run locally against preview branch:
    ```bash
-   DATABASE_URL="your-preview-neon-url" npm run db:push
+   DATABASE_URL="your-preview-neon-url" npm run db:migrate
    DATABASE_URL="your-preview-neon-url" npm run seed
    ```
 

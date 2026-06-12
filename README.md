@@ -29,8 +29,7 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
 
 3. **Database**
    ```bash
-   # If db:push fails (TCP), use HTTP migrate (recommended for Neon):
-   npm run db:migrate
+   npm run db:push
    npm run seed
    ```
    `npm run seed` and `npm run db:migrate` load **`.env.local`** then **`.env`** automatically (same as you use for `npm run dev`). Ensure `DATABASE_URL` is set in one of those files.
@@ -39,7 +38,9 @@ Organic products marketplace for India — Next.js 15, Neon PostgreSQL, Drizzle 
 
    **`db:migrate` is idempotent:** it records each `lib/db/migrations/*.sql` file in `_neon_sql_migrations`. Re-runs skip files already applied. If your database was created before this ledger existed but already has `public.users`, the script auto-marks `0000_init.sql` as applied so only newer files (e.g. `0001_merchandising.sql`) execute.
 
-   **Note:** Use the **pooled** URL in `.env.local` for the app. For `drizzle-kit push` only, use Neon’s **direct** (non-`-pooler`) URL from the console.
+   **`npm run db:push`** runs `scripts/db-push.ts`. If `DATABASE_URL` points at **Neon** (`*.neon.tech`), it runs the same **HTTP** migration path as `db:migrate` (avoids `drizzle-kit push` TCP introspection, which often fails with `ECONNRESET` on some networks). For non-Neon Postgres it runs **Drizzle Kit push** with env loading, **`NODE_PATH`** pinned to this repo’s `node_modules`, and IPv4-first DNS. Set **`DRIZZLE_KIT_PUSH=1`** to force Drizzle Kit even on Neon (debug only).
+
+   **Note:** Keep the **pooled** `DATABASE_URL` for the Next.js app. New schema is shipped as `lib/db/migrations/*.sql` for the Neon HTTP path; extend those files (or use Drizzle Kit on a DB where TCP works) when tables change.
 
 4. **Run**
    ```bash
@@ -85,7 +86,7 @@ Coupons: `TESTSHIP`, `SAVE10`, `WELCOME50` (referral welcome)
 |-------------------|--------------------------|
 | `npm run dev`     | Development server       |
 | `npm run build`   | Production build         |
-| `npm run db:push` | Push schema to Neon      |
+| `npm run db:push` | Schema sync (Neon: HTTP migrations; else Drizzle Kit push) |
 | `npm run seed`    | Seed test data           |
 | `npm run smoke`   | Post-deploy smoke tests  |
 
@@ -94,7 +95,7 @@ Coupons: `TESTSHIP`, `SAVE10`, `WELCOME50` (referral welcome)
 - **Checkout:** Tier discounts (from `loyalty_tiers`), coupon revalidation, karma slider (COD deducts immediately; Razorpay deducts after `verify-payment`).
 - **Referrals:** Visit `/r/{REFERRAL_CODE}` to set a cookie; after sign-in, `POST /api/referral/claim` links `referred_by`. Seeded coupon `WELCOME50` (flat ₹50) for referral programs.
 - **Auth:** Google OAuth loads only when `GOOGLE_CLIENT_ID` / `SECRET` are set. Email magic link uses Resend when `RESEND_API_KEY` is set.
-- **Admin:** Reviews moderation (`/admin/reviews`), campaigns (`/admin/marketing`), analytics snapshot (`/admin/analytics`), product bulk JSON import (`POST /api/admin/products/bulk-import` with `{ rows: [...] }`).
+- **Admin:** Reviews moderation (`/admin/reviews`), campaigns (`/admin/marketing` — tied to catalog products, optional wide banner), analytics snapshot (`/admin/analytics`), product bulk JSON import (`POST /api/admin/products/bulk-import` with `{ rows: [...] }`). Marketing images use Pollinations — see [docs/POLLINATIONS-MARKETING-IMAGES.md](docs/POLLINATIONS-MARKETING-IMAGES.md) for server key setup (`POLLINATIONS_API_KEY` / `sk_`) and signed preview URLs.
 - **Wishlist:** Logged-in users use `/api/wishlist`; guests use `localStorage` and merge on login.
 - **Inngest:** Added `loyalty-expire` (monthly) and `campaign-heartbeat` (daily).
 - **Schema:** New `campaigns` table — run `npm run db:push` or your migration flow after pulling.
