@@ -1,4 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  OVERLAY_PRIMARY_MAX,
+  OVERLAY_SECONDARY_MAX,
+  sanitizeMarketingOverlayLine,
+} from "@/lib/marketing/marketing-on-image-copy";
 import { isAllowedMarketingReferenceImageUrl } from "@/lib/marketing/reference-image-url";
 
 export interface ImageGenerationOptions {
@@ -24,9 +29,26 @@ export const MAX_POLLINATIONS_PROMPT_CHARS = 1400;
 const FALLBACK_IMAGE_PROMPT =
   "organic natural products, refined editorial hero still, soft diffused daylight, premium Indian wellness aesthetic, magazine cover quality";
 
-/** Merged into prepared prompts for every marketing image to steer Flux away from garbled text. */
+/** Merged into prepared prompts when no approved overlay lines are supplied. */
 const POLLINATIONS_TYPOGRAPHY_GUARD =
   ", photoreal scene only: no fake headlines, coupons, watermarks, hashtags, or random words in the image; do not render slogans or lettering unless it is authentic packaging from the reference photo reproduced faithfully; avoid invented typography entirely when possible";
+
+export type ExactImageOverlay = {
+  primary: string;
+  secondary?: string | null;
+};
+
+function buildExactOverlayInstruction(primary: string, secondary?: string | null): string {
+  const p = primary.replace(/"/g, '\\"');
+  const s = secondary?.trim() ? secondary.trim().replace(/"/g, '\\"') : "";
+  let out = `, premium D2C marketing still: add one refined text panel (sleek geometric sans-serif, large type, high contrast, generous padding). The ONLY readable words in the entire image must be exactly \"${p}\"`;
+  if (s) {
+    out += ` on the first line and exactly \"${s}\" on the second line`;
+  }
+  out +=
+    "; reproduce those strings character-for-character with correct spelling; do not add hashtags, coupons, watermarks, extra slogans, or any other readable words; if text would be illegible or warped, use clean negative space instead of guessing letters";
+  return out;
+}
 
 const POLLINATIONS_QUALITY_SUFFIX =
   ", ultra high detail, soft sophisticated lighting, refined color grading, gentle contrast, tasteful negative space, calm premium commercial look, shallow depth of field where appropriate";
@@ -65,6 +87,12 @@ export type BuildSignedMarketingImageUrlOptions = {
   ttlSeconds?: number;
   /** HTTPS product / asset URL; must pass `isAllowedMarketingReferenceImageUrl`. */
   referenceImageUrl?: string | null;
+  /**
+   * Optional short lines baked into the Flux prompt with strict “exact copy” instructions
+   * (sanitized server-side). Omit to keep the default no-random-text guard.
+   */
+  exactOverlayPrimary?: string | null;
+  exactOverlaySecondary?: string | null;
 };
 
 /** djb2 hash → positive 32-bit int for deterministic Pollinations seed */
@@ -113,11 +141,31 @@ function clampForEncodedUrlLength(decoded: string, maxEncodedLen: number): strin
   return s || FALLBACK_IMAGE_PROMPT.slice(0, 120);
 }
 
-/** Trim/fallback → organic suffix → quality & typography guards → length clamps for Pollinations. */
-export function preparePollinationsImagePrompt(prompt: string): string {
+function exactOverlayFromOptions(options?: BuildSignedMarketingImageUrlOptions): ExactImageOverlay | null {
+  const a = options?.exactOverlayPrimary?.trim()
+    ? sanitizeMarketingOverlayLine(options.exactOverlayPrimary, OVERLAY_PRIMARY_MAX)
+    : null;
+  if (!a) return null;
+  const b = options?.exactOverlaySecondary?.trim()
+    ? sanitizeMarketingOverlayLine(options.exactOverlaySecondary, OVERLAY_SECONDARY_MAX)
+    : null;
+  return { primary: a, secondary: b || null };
+}
+
+/** Trim/fallback → organic suffix → quality + (optional exact overlay OR typography guard) → clamps. */
+export function preparePollinationsImagePrompt(
+  prompt: string,
+  overlay?: ExactImageOverlay | null,
+): string {
   const raw = (prompt || "").trim() || FALLBACK_IMAGE_PROMPT;
   let enhanced = enhancePromptForOrganic(raw);
-  enhanced = `${enhanced}${POLLINATIONS_QUALITY_SUFFIX}${POLLINATIONS_TYPOGRAPHY_GUARD}`;
+  enhanced = `${enhanced}${POLLINATIONS_QUALITY_SUFFIX}`;
+  if (overlay?.primary?.trim()) {
+    enhanced = `${enhanced}${buildExactOverlayInstruction(overlay.primary.trim(), overlay.secondary)}`;
+    enhanced = `${enhanced}, besides those approved lines: no fake coupons, watermarks, or random gibberish text`;
+  } else {
+    enhanced = `${enhanced}${POLLINATIONS_TYPOGRAPHY_GUARD}`;
+  }
   enhanced = clampImagePromptForPollinations(enhanced, MAX_POLLINATIONS_PROMPT_CHARS);
   enhanced = clampForEncodedUrlLength(enhanced, 6500);
   return enhanced;
@@ -175,7 +223,7 @@ export function buildSignedMarketingImageUrl(
   height: number,
   options?: BuildSignedMarketingImageUrlOptions,
 ): string {
-  const prep = preparePollinationsImagePrompt(prompt);
+  const prep = preparePollinationsImagePrompt(prompt, exactOverlayFromOptions(options));
   const seed = options?.seed ?? djb2HashToSeed(prep);
   const exp = Math.floor(Date.now() / 1000) + (options?.ttlSeconds ?? DEFAULT_SIGNED_IMAGE_TTL_SEC);
   const refNorm = options?.referenceImageUrl ? normalizeRefForSigning(options.referenceImageUrl) : "";

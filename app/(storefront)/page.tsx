@@ -4,10 +4,12 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { categories, productImages, products } from "@/lib/db/schema";
 import { listActiveBundles } from "@/lib/db/queries/bundles";
+import { getPublishedHomepageBanner } from "@/lib/db/queries/site-homepage-banner";
 import { getPersonalizedPicksWithSources } from "@/lib/db/queries/personalization";
 import { enhancePersonalizedPicksWithGemini } from "@/lib/personalization/gemini-picks";
 import { tryRefreshUserGeminiProfile } from "@/lib/personalization/gemini-profile";
 import { isGeminiConfigured } from "@/lib/gemini";
+import { HomepageHeroBanner } from "@/components/storefront/HomepageHeroBanner";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { PersonalizedForYouRail } from "@/components/storefront/PersonalizedForYouRail";
 import { Button } from "@/components/ui/button";
@@ -17,43 +19,44 @@ import { formatINR, cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 async function getHomeData(userId?: string | null) {
-  const cats = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.isActive, true))
-    .orderBy(categories.sortOrder)
-    .limit(6);
-
-  const bestsellers = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      slug: products.slug,
-      price: products.price,
-      comparePrice: products.comparePrice,
-      promotionalDiscountPct: products.promotionalDiscountPct,
-      stockQty: products.stockQty,
-      lowStockThreshold: products.lowStockThreshold,
-      isOrganicCertified: products.isOrganicCertified,
-      isBestseller: products.isBestseller,
-      avgRating: products.avgRating,
-      reviewCount: products.reviewCount,
-      imageUrl: productImages.url,
-      categoryName: categories.name,
-    })
-    .from(products)
-    .innerJoin(categories, eq(products.categoryId, categories.id))
-    .leftJoin(
-      productImages,
-      and(eq(productImages.productId, products.id), eq(productImages.isPrimary, true)),
-    )
-    .where(
-      and(eq(products.isActive, true), isNull(products.deletedAt), eq(products.isBestseller, true)),
-    )
-    .orderBy(desc(products.totalSales))
-    .limit(8);
-
-  const bundles = await listActiveBundles(4);
+  const [cats, bestsellers, bundles, homepageBanner] = await Promise.all([
+    db
+      .select()
+      .from(categories)
+      .where(eq(categories.isActive, true))
+      .orderBy(categories.sortOrder)
+      .limit(6),
+    db
+      .select({
+        id: products.id,
+        name: products.name,
+        slug: products.slug,
+        price: products.price,
+        comparePrice: products.comparePrice,
+        promotionalDiscountPct: products.promotionalDiscountPct,
+        stockQty: products.stockQty,
+        lowStockThreshold: products.lowStockThreshold,
+        isOrganicCertified: products.isOrganicCertified,
+        isBestseller: products.isBestseller,
+        avgRating: products.avgRating,
+        reviewCount: products.reviewCount,
+        imageUrl: productImages.url,
+        categoryName: categories.name,
+      })
+      .from(products)
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(
+        productImages,
+        and(eq(productImages.productId, products.id), eq(productImages.isPrimary, true)),
+      )
+      .where(
+        and(eq(products.isActive, true), isNull(products.deletedAt), eq(products.isBestseller, true)),
+      )
+      .orderBy(desc(products.totalSales))
+      .limit(8),
+    listActiveBundles(4),
+    getPublishedHomepageBanner(),
+  ]);
 
   let personalizedPicks: Awaited<ReturnType<typeof getPersonalizedPicksWithSources>> = [];
   if (userId) {
@@ -66,17 +69,20 @@ async function getHomeData(userId?: string | null) {
     }
   }
 
-  return { cats, bestsellers, bundles, personalizedPicks };
+  return { cats, bestsellers, bundles, homepageBanner, personalizedPicks };
 }
 
 export default async function HomePage() {
   const session = await auth();
-  const { cats, bestsellers, bundles, personalizedPicks } = await getHomeData(session?.user?.id);
+  const { cats, bestsellers, bundles, homepageBanner, personalizedPicks } = await getHomeData(
+    session?.user?.id,
+  );
 
   const firstName = session?.user?.name?.split(/\s+/)[0];
 
   return (
     <>
+      {homepageBanner ? <HomepageHeroBanner banner={homepageBanner} /> : null}
       <section className="relative flex min-h-[70vh] items-center overflow-hidden md:min-h-[90vh]">
         <div
           className="absolute inset-0 opacity-100"

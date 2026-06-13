@@ -1171,6 +1171,18 @@ export const marketingCampaigns = pgTable(
   ],
 );
 
+/** Single-row config: optional premium hero strip on the public storefront homepage. */
+export const siteHomepageBanner = pgTable("site_homepage_banner", {
+  singleton: text("singleton").primaryKey().default("default"),
+  imageUrl: text("image_url"),
+  linkHref: text("link_href"),
+  headline: text("headline"),
+  subheadline: text("subheadline"),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+});
+
 export const socialConnections = pgTable(
   "social_connections",
   {

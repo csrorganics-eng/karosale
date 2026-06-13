@@ -13,15 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ADMIN_SETTINGS_MARKETING_CHANNELS } from "@/lib/admin-marketing-routes";
-import { MarketingPromotionPreviewModal } from "@/components/admin/marketing/marketing-promotion-preview-modal";
 import {
-  BANNER_ASPECT_OPTIONS,
-  bannerDimensionsForAspect,
-  bannerPreviewAspectClass,
-  type MarketingBannerAspect,
-  parseMarketingBannerAspect,
-} from "@/lib/marketing/banner-aspect";
+  ADMIN_MARKETING_HOMEPAGE_BANNER,
+  ADMIN_SETTINGS_MARKETING_CHANNELS,
+} from "@/lib/admin-marketing-routes";
+import { MarketingPromotionPreviewModal } from "@/components/admin/marketing/marketing-promotion-preview-modal";
 import {
   defaultProductShopUrl,
   defaultStorefrontHomepageUrl,
@@ -68,11 +64,6 @@ function NewMarketingCampaignContent() {
   /** Primary packshot HTTPS URL for Pollinations reference (must be publicly reachable). */
   const [primaryImageUrl, setPrimaryImageUrl] = useState<string | null>(null);
 
-  const [includeBanner, setIncludeBanner] = useState(false);
-  const [bannerAspect, setBannerAspect] = useState<MarketingBannerAspect>("16:9");
-  const [bannerImageUrl, setBannerImageUrl] = useState("");
-  const [bannerImagePrompt, setBannerImagePrompt] = useState("");
-
   const [campaignKind, setCampaignKind] = useState<"product" | "event">("product");
   const [eventTitle, setEventTitle] = useState("");
   const [eventDescription, setEventDescription] = useState("");
@@ -99,6 +90,10 @@ function NewMarketingCampaignContent() {
   /** Link-in-bio / ad landing: homepage for events, product or tracking URL for products. */
   const [redirectUrl, setRedirectUrl] = useState("");
 
+  /** Exact lines passed into Flux for controlled on-image typography (from AI or manual). */
+  const [onImagePrimary, setOnImagePrimary] = useState("");
+  const [onImageSecondary, setOnImageSecondary] = useState("");
+
   const [platformFb, setPlatformFb] = useState(true);
   const [platformIg, setPlatformIg] = useState(true);
   const [platformWa, setPlatformWa] = useState(true);
@@ -110,9 +105,6 @@ function NewMarketingCampaignContent() {
   const [error, setError] = useState<string | null>(null);
   const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
   const [regeneratingImage, setRegeneratingImage] = useState(false);
-  const [bannerPreviewFailed, setBannerPreviewFailed] = useState(false);
-  const [regeneratingBanner, setRegeneratingBanner] = useState(false);
-
   const [social, setSocial] = useState<SocialStatus | null>(null);
   const [waGroups, setWaGroups] = useState<Array<{ id: number; name: string }>>([]);
 
@@ -129,10 +121,6 @@ function NewMarketingCampaignContent() {
   useEffect(() => {
     setImagePreviewFailed(false);
   }, [imageUrl]);
-
-  useEffect(() => {
-    setBannerPreviewFailed(false);
-  }, [bannerImageUrl]);
 
   const hydrateProductSelection = useCallback(async (productId: string) => {
     setSelectedProductId(productId);
@@ -203,8 +191,7 @@ function NewMarketingCampaignContent() {
         tone,
         language,
         customInstructions: customInstructions.trim() || undefined,
-        includeBanner,
-        bannerAspect,
+        includeBanner: false,
         imageRefinementPrompt: imageRefinementPrompt.trim() || undefined,
       };
       const body =
@@ -226,15 +213,14 @@ function NewMarketingCampaignContent() {
         success?: boolean;
         error?: string;
         data?: {
-          bannerAspect?: string;
           eventReferenceImageUrl?: string | null;
           postText: string;
           hashtags: string[];
           imagePrompt: string;
           imageUrl: string;
-          bannerImagePrompt?: string;
-          bannerImageUrl?: string;
           whatsappText: string;
+          feedImageHeadline?: string;
+          feedImageSubline?: string;
         };
       };
       if (!r.ok || !j.success || !j.data) {
@@ -245,10 +231,9 @@ function NewMarketingCampaignContent() {
       setHashtags(j.data.hashtags ?? []);
       setImagePrompt(j.data.imagePrompt);
       setImageUrl(j.data.imageUrl);
-      setBannerImagePrompt(j.data.bannerImagePrompt ?? "");
-      setBannerImageUrl(j.data.bannerImageUrl ?? "");
       setWhatsappText(j.data.whatsappText);
-      if (j.data.bannerAspect) setBannerAspect(parseMarketingBannerAspect(j.data.bannerAspect));
+      setOnImagePrimary(j.data.feedImageHeadline?.trim() ?? "");
+      setOnImageSecondary(j.data.feedImageSubline?.trim() ?? "");
       if (campaignKind === "event" && j.data.eventReferenceImageUrl !== undefined) {
         setEventReferenceImageUrl(j.data.eventReferenceImageUrl);
       }
@@ -273,6 +258,8 @@ function NewMarketingCampaignContent() {
           height: 1080,
           seed: Math.floor(Math.random() * 1_000_000_000),
           referenceImageUrl: ref,
+          exactOverlayPrimary: onImagePrimary.trim() || null,
+          exactOverlaySecondary: onImageSecondary.trim() || null,
         }),
       });
       const j = (await r.json()) as {
@@ -287,40 +274,6 @@ function NewMarketingCampaignContent() {
       setImageUrl(j.data.imageUrl);
     } finally {
       setRegeneratingImage(false);
-    }
-  }
-
-  async function regenerateBanner() {
-    if (!bannerImagePrompt.trim()) return;
-    setError(null);
-    setRegeneratingBanner(true);
-    try {
-      const { width, height } = bannerDimensionsForAspect(bannerAspect);
-      const ref = campaignKind === "product" ? primaryImageUrl : eventReferenceImageUrl;
-      const r = await fetch("/api/admin/marketing/image-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imagePrompt: bannerImagePrompt.trim(),
-          refinementPrompt: imageRefinementPrompt.trim() || undefined,
-          width,
-          height,
-          seed: Math.floor(Math.random() * 1_000_000_000),
-          referenceImageUrl: ref,
-        }),
-      });
-      const j = (await r.json()) as {
-        success?: boolean;
-        data?: { imageUrl?: string };
-        error?: string;
-      };
-      if (!r.ok || !j.success || !j.data?.imageUrl) {
-        setError(j.error ?? "Could not build banner URL");
-        return;
-      }
-      setBannerImageUrl(j.data.imageUrl);
-    } finally {
-      setRegeneratingBanner(false);
     }
   }
 
@@ -355,11 +308,8 @@ function NewMarketingCampaignContent() {
         eventDescription: campaignKind === "event" ? eventDescription.trim() : undefined,
         eventReferenceImageUrl:
           campaignKind === "event" ? eventReferenceImageUrl ?? undefined : undefined,
-        bannerAspect,
         imagePrompt: imagePrompt || undefined,
         imageUrl: imageUrl || undefined,
-        bannerImagePrompt: bannerImagePrompt || undefined,
-        bannerImageUrl: bannerImageUrl || undefined,
         imageRefinementPrompt: imageRefinementPrompt.trim() || undefined,
         platforms: selectedPlatforms().length ? selectedPlatforms() : ["facebook"],
         productPageUrl: campaignKind === "product" ? productPageUrl.trim() || undefined : undefined,
@@ -525,7 +475,14 @@ function NewMarketingCampaignContent() {
               </div>
               <p className="text-xs text-text-secondary">
                 Product campaigns use a catalog SKU and packshot. Events use a title, description, and an optional
-                reference image for AI.
+                reference image for AI. Wide <strong className="text-foreground/90">shop homepage</strong> banners are{" "}
+                <Link
+                  href={ADMIN_MARKETING_HOMEPAGE_BANNER}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  managed separately
+                </Link>
+                .
               </p>
             </div>
 
@@ -761,34 +718,6 @@ function NewMarketingCampaignContent() {
               </div>
             )}
 
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-border"
-                checked={includeBanner}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setIncludeBanner(e.target.checked)}
-              />
-              <span className="text-sm">Also generate a <strong>banner</strong> image (shape below)</span>
-            </label>
-            {includeBanner ? (
-              <div className="space-y-2">
-                <span className="text-sm font-medium">Banner shape</span>
-                <select
-                  className={selectClassName}
-                  value={bannerAspect}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                    setBannerAspect(e.target.value as MarketingBannerAspect)
-                  }
-                >
-                  {BANNER_ASPECT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <span className="text-sm font-medium">Goal</span>
@@ -914,8 +843,8 @@ function NewMarketingCampaignContent() {
                         <p className="mt-1 text-xs leading-relaxed text-text-secondary">
                           Short notes for mood, lighting, palette, or composition. These are{" "}
                           <strong className="text-foreground/90">not</strong> the main image prompt — they are{" "}
-                          <strong className="text-foreground/90">merged in when you regenerate</strong> the feed or
-                          banner (same request as your Flux lines further down).
+                          <strong className="text-foreground/90">merged in when you regenerate</strong> the feed
+                          image (same request as your Flux line below).
                         </p>
                       </div>
                       <div
@@ -924,8 +853,7 @@ function NewMarketingCampaignContent() {
                       >
                         <strong className="font-semibold">How it works:</strong> there is no &quot;Send&quot; for this
                         box. Write your notes, then click{" "}
-                        <strong className="font-semibold">Regenerate feed image</strong> or{" "}
-                        <strong className="font-semibold">Regenerate banner</strong> — each run sends{" "}
+                        <strong className="font-semibold">Regenerate feed image</strong> — each run sends{" "}
                         <em>Flux prompt + visual direction + reference photo</em> to the image API.
                       </div>
                       <Textarea
@@ -953,18 +881,6 @@ function NewMarketingCampaignContent() {
                         >
                           {regeneratingImage ? "Regenerating feed…" : "Regenerate feed image"}
                         </Button>
-                        {(bannerImageUrl || bannerImagePrompt) && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="default"
-                            className="w-full border-primary/30 font-semibold sm:w-auto"
-                            disabled={regeneratingBanner || !bannerImagePrompt.trim()}
-                            onClick={() => void regenerateBanner()}
-                          >
-                            {regeneratingBanner ? "Regenerating banner…" : "Regenerate banner"}
-                          </Button>
-                        )}
                       </div>
                       <p className="text-[11px] leading-relaxed text-text-secondary">
                         Tip: empty visual direction is fine — then only the Flux lines below are used.
@@ -1030,22 +946,41 @@ function NewMarketingCampaignContent() {
                       className="font-mono text-xs shadow-sm"
                     />
                   </div>
-                  {(bannerImageUrl || bannerImagePrompt) && (
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="bannerp"
-                        className="text-xs font-semibold uppercase tracking-wide text-text-secondary"
-                      >
-                        Flux — banner
-                      </label>
-                      <Input
-                        id="bannerp"
-                        value={bannerImagePrompt}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setBannerImagePrompt(e.target.value)}
-                        className="font-mono text-xs shadow-sm"
-                      />
-                    </div>
-                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="onimg1"
+                      className="text-xs font-semibold uppercase tracking-wide text-text-secondary"
+                    >
+                      On-image line 1 <span className="font-normal">(optional)</span>
+                    </label>
+                    <Input
+                      id="onimg1"
+                      value={onImagePrimary}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setOnImagePrimary(e.target.value)}
+                      placeholder="e.g. Monsoon harvest sale"
+                      maxLength={52}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="onimg2"
+                      className="text-xs font-semibold uppercase tracking-wide text-text-secondary"
+                    >
+                      On-image line 2 <span className="font-normal">(optional)</span>
+                    </label>
+                    <Input
+                      id="onimg2"
+                      value={onImageSecondary}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setOnImageSecondary(e.target.value)}
+                      placeholder="e.g. Free shipping over ₹499"
+                      maxLength={80}
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
 
                 {campaignKind === "product" && selectedProductId ? (
@@ -1071,7 +1006,9 @@ function NewMarketingCampaignContent() {
                     <p className="text-sm font-semibold">Feed image</p>
                     <p className="text-xs leading-relaxed text-text-secondary">
                       Regenerate from <strong className="text-foreground/90">Visual direction</strong> on the left —
-                      includes Flux feed line, your notes, and the reference photo.
+                      includes Flux feed line, your notes, and the reference photo. Optional{" "}
+                      <strong className="text-foreground/90">On-image lines</strong> below are sent as exact copy for
+                      premium text panels (edit spelling before regenerating).
                     </p>
                   </div>
                   <div className="mt-4 overflow-hidden rounded-xl border border-border/80 bg-background shadow-md ring-1 ring-black/5">
@@ -1099,63 +1036,6 @@ function NewMarketingCampaignContent() {
                     </p>
                   ) : null}
                 </div>
-
-                {bannerImageUrl || bannerImagePrompt ? (
-                  <div className="rounded-2xl border border-border/90 bg-muted/15 p-5 shadow-inner ring-1 ring-black/[0.03] dark:ring-white/[0.05]">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-sm font-semibold">Banner</p>
-                      <div className="flex w-full flex-col gap-2 sm:max-w-[220px]">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
-                          Aspect
-                        </span>
-                        <select
-                          className={selectClassName}
-                          value={bannerAspect}
-                          onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                            setBannerAspect(e.target.value as MarketingBannerAspect)
-                          }
-                        >
-                          {BANNER_ASPECT_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div
-                      className={cn(
-                        "relative mt-4 w-full overflow-hidden rounded-xl border border-border/80 bg-muted shadow-md",
-                        bannerPreviewAspectClass(bannerAspect),
-                      )}
-                    >
-                      {bannerImageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={bannerImageUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          loading="eager"
-                          onError={() => setBannerPreviewFailed(true)}
-                        />
-                      ) : (
-                        <div className="flex h-full min-h-[120px] items-center justify-center text-xs text-text-secondary">
-                          No banner URL
-                        </div>
-                      )}
-                    </div>
-                    <p className="mt-3 text-xs leading-relaxed text-text-secondary">
-                      After changing aspect or Flux banner line, use{" "}
-                      <strong className="text-foreground/90">Regenerate banner</strong> under Visual direction on the
-                      left.
-                    </p>
-                    {bannerPreviewFailed ? (
-                      <p className="mt-2 text-xs text-amber-900 dark:text-amber-200/90">
-                        Banner preview failed — check server logs.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
             </div>
 
@@ -1284,8 +1164,7 @@ function NewMarketingCampaignContent() {
         hashtags={hashtags}
         whatsappText={whatsappText}
         imageUrl={imageUrl}
-        bannerImageUrl={bannerImageUrl || null}
-        bannerAspect={bannerAspect}
+        bannerImageUrl={null}
         redirectUrl={redirectUrl.trim() || null}
         productPageUrl={campaignKind === "product" ? productPageUrl.trim() || null : null}
       />

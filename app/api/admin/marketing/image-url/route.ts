@@ -13,6 +13,9 @@ const bodySchema = z.object({
   seed: z.number().int().optional(),
   /** HTTPS catalog image URL (trusted host). */
   referenceImageUrl: z.string().url().max(900).optional().nullable(),
+  /** Sanitized short lines for controlled on-image typography (optional). */
+  exactOverlayPrimary: z.string().max(120).optional().nullable(),
+  exactOverlaySecondary: z.string().max(160).optional().nullable(),
 });
 
 /**
@@ -39,6 +42,8 @@ export async function POST(request: Request) {
     const imageUrl = buildSignedMarketingImageUrl(origin, merged, w, h, {
       seed: parsed.data.seed,
       referenceImageUrl: ref,
+      exactOverlayPrimary: parsed.data.exactOverlayPrimary?.trim() || null,
+      exactOverlaySecondary: parsed.data.exactOverlaySecondary?.trim() || null,
     });
     return jsonOk({ imageUrl });
   } catch (e) {

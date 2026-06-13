@@ -9,6 +9,11 @@ import {
 import { generateMarketingContent } from "@/lib/marketing/ai-content-generator";
 import { bannerDimensionsForAspect, parseMarketingBannerAspect } from "@/lib/marketing/banner-aspect";
 import { buildSignedMarketingImageUrl, mergeMarketingImagePrompt } from "@/lib/marketing/image-generator";
+import {
+  OVERLAY_PRIMARY_MAX,
+  OVERLAY_SECONDARY_MAX,
+  sanitizeMarketingOverlayLine,
+} from "@/lib/marketing/marketing-on-image-copy";
 import { getProductForMarketing } from "@/lib/marketing/product-for-campaign";
 import { isAllowedMarketingReferenceImageUrl } from "@/lib/marketing/reference-image-url";
 import { BRAND_NAME } from "@/lib/brand";
@@ -104,6 +109,9 @@ export async function POST(request: Request) {
         hasProductImage: Boolean(refUrl),
       });
 
+      const feedPrimary = sanitizeMarketingOverlayLine(result.feedImageHeadline ?? "", OVERLAY_PRIMARY_MAX);
+      const feedSecondary = sanitizeMarketingOverlayLine(result.feedImageSubline ?? "", OVERLAY_SECONDARY_MAX);
+
       const imageUrl = buildSignedMarketingImageUrl(
         origin,
         mergeMarketingImagePrompt(result.imagePrompt, refine),
@@ -111,11 +119,15 @@ export async function POST(request: Request) {
         1080,
         {
           referenceImageUrl: refUrl,
+          exactOverlayPrimary: feedPrimary,
+          exactOverlaySecondary: feedSecondary,
         },
       );
 
       let bannerImageUrl: string | undefined;
       if (parsed.data.includeBanner && result.bannerImagePrompt) {
+        const bHead = sanitizeMarketingOverlayLine(result.bannerImageHeadline ?? "", OVERLAY_PRIMARY_MAX);
+        const bSub = sanitizeMarketingOverlayLine(result.bannerImageSubline ?? "", OVERLAY_SECONDARY_MAX);
         bannerImageUrl = buildSignedMarketingImageUrl(
           origin,
           mergeMarketingImagePrompt(result.bannerImagePrompt, refine),
@@ -123,6 +135,8 @@ export async function POST(request: Request) {
           bh,
           {
             referenceImageUrl: refUrl,
+            exactOverlayPrimary: bHead ?? feedPrimary,
+            exactOverlaySecondary: bSub ?? feedSecondary,
           },
         );
       }
@@ -136,7 +150,11 @@ export async function POST(request: Request) {
         hashtags: result.hashtags,
         imagePrompt: result.imagePrompt,
         imageUrl,
+        feedImageHeadline: result.feedImageHeadline,
+        feedImageSubline: result.feedImageSubline,
         bannerImagePrompt: result.bannerImagePrompt,
+        bannerImageHeadline: result.bannerImageHeadline,
+        bannerImageSubline: result.bannerImageSubline,
         bannerImageUrl,
         whatsappText: result.whatsappText,
       });
@@ -160,6 +178,9 @@ export async function POST(request: Request) {
       hasEventReferenceImage: Boolean(eventRef),
     });
 
+    const feedPrimary = sanitizeMarketingOverlayLine(result.feedImageHeadline ?? "", OVERLAY_PRIMARY_MAX);
+    const feedSecondary = sanitizeMarketingOverlayLine(result.feedImageSubline ?? "", OVERLAY_SECONDARY_MAX);
+
     const imageUrl = buildSignedMarketingImageUrl(
       origin,
       mergeMarketingImagePrompt(result.imagePrompt, refine),
@@ -167,11 +188,15 @@ export async function POST(request: Request) {
       1080,
       {
         referenceImageUrl: eventRef,
+        exactOverlayPrimary: feedPrimary,
+        exactOverlaySecondary: feedSecondary,
       },
     );
 
     let bannerImageUrl: string | undefined;
     if (parsed.data.includeBanner && result.bannerImagePrompt) {
+      const bHead = sanitizeMarketingOverlayLine(result.bannerImageHeadline ?? "", OVERLAY_PRIMARY_MAX);
+      const bSub = sanitizeMarketingOverlayLine(result.bannerImageSubline ?? "", OVERLAY_SECONDARY_MAX);
       bannerImageUrl = buildSignedMarketingImageUrl(
         origin,
         mergeMarketingImagePrompt(result.bannerImagePrompt, refine),
@@ -179,6 +204,8 @@ export async function POST(request: Request) {
         bh,
         {
           referenceImageUrl: eventRef,
+          exactOverlayPrimary: bHead ?? feedPrimary,
+          exactOverlaySecondary: bSub ?? feedSecondary,
         },
       );
     }
@@ -193,7 +220,11 @@ export async function POST(request: Request) {
       hashtags: result.hashtags,
       imagePrompt: result.imagePrompt,
       imageUrl,
+      feedImageHeadline: result.feedImageHeadline,
+      feedImageSubline: result.feedImageSubline,
       bannerImagePrompt: result.bannerImagePrompt,
+      bannerImageHeadline: result.bannerImageHeadline,
+      bannerImageSubline: result.bannerImageSubline,
       bannerImageUrl,
       whatsappText: result.whatsappText,
     });

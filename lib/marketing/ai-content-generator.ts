@@ -38,6 +38,12 @@ export interface MarketingContentResult {
   /** Wide landscape marketing banner; only when includeBanner was requested. */
   bannerImagePrompt?: string;
   whatsappText: string;
+  /** Short approved lines for on-image typography (feed). */
+  feedImageHeadline?: string;
+  feedImageSubline?: string;
+  /** Short approved lines for on-image typography (banner). */
+  bannerImageHeadline?: string;
+  bannerImageSubline?: string;
 }
 
 function brandFromEnv(): string {
@@ -94,6 +100,12 @@ function buildUserMessage(req: MarketingContentRequest): string {
     .join("\n");
 }
 
+function readOverlayField(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim();
+  return t ? t : undefined;
+}
+
 function parseResult(raw: unknown, includeBanner: boolean): MarketingContentResult | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -109,7 +121,17 @@ function parseResult(raw: unknown, includeBanner: boolean): MarketingContentResu
   const bannerImagePrompt =
     typeof o.bannerImagePrompt === "string" && o.bannerImagePrompt.trim() ? o.bannerImagePrompt.trim() : undefined;
   if (includeBanner && !bannerImagePrompt) return null;
-  return { postText, hashtags, imagePrompt, bannerImagePrompt, whatsappText };
+  return {
+    postText,
+    hashtags,
+    imagePrompt,
+    bannerImagePrompt,
+    whatsappText,
+    feedImageHeadline: readOverlayField(o.feedImageHeadline),
+    feedImageSubline: readOverlayField(o.feedImageSubline),
+    bannerImageHeadline: readOverlayField(o.bannerImageHeadline),
+    bannerImageSubline: readOverlayField(o.bannerImageSubline),
+  };
 }
 
 async function runCompletion(
@@ -138,21 +160,29 @@ export async function generateMarketingContent(
   const bannerAspect = req.bannerAspect ?? "16:9";
   const bannerShapeHint = bannerAspectInstructionForAi(bannerAspect);
   const bannerField = includeBanner
-    ? ', "bannerImagePrompt": string'
+    ? ', "bannerImagePrompt": string, "bannerImageHeadline": string, "bannerImageSubline": string'
     : "";
+
+  const overlayFields = ', "feedImageHeadline": string, "feedImageSubline": string';
 
   const imageRules =
     contentKind === "event"
-      ? `- imagePrompt: detailed Flux prompt for a square (1:1) Instagram-style feed image for the event. Demand luxury editorial quality: soft diffused light, refined palette, tasteful props, cinematic depth. Absolutely no fake slogans, coupons, watermarks, or AI-generated words in the frame; no misspelled typography; prefer a purely photographic scene. If a reference image exists, echo its mood and palette without copying illegible small print.`
-      : `- imagePrompt: detailed Flux prompt for a square (1:1) Instagram-style feed image. Preserve the real product identity from any reference packshot (shape, colors, label legibility). Demand refined editorial / premium D2C quality: soft key light, gentle shadows, elegant negative space, magazine-grade composition. Absolutely no fake headlines, watermarks, hashtags, or invented words in the image; no misspelled lettering; do not add promotional text overlays — let the product and scene speak visually.`;
+      ? `- imagePrompt: detailed Flux prompt for a square (1:1) Instagram-style feed image for the event. Demand luxury editorial quality: soft diffused light, refined palette, tasteful props, cinematic depth. Leave comfortable negative space for a clean text panel. If a reference image exists, echo its mood and palette without copying illegible small print.
+- feedImageHeadline: 2–7 words, high-impact hook aligned with the event (Latin / English strongly preferred for crisp on-image type). This exact spelling will be used as the primary line in a premium minimalist text panel on the feed image — no hashtags.
+- feedImageSubline: optional 3–12 words (benefit, date window, or location); use empty string if not needed. Same spelling discipline.`
+      : `- imagePrompt: detailed Flux prompt for a square (1:1) Instagram-style feed image. Preserve the real product identity from any reference packshot (shape, colors, label legibility). Demand refined editorial / premium D2C quality: soft key light, gentle shadows, elegant negative space, magazine-grade composition. Leave comfortable negative space for a clean text panel.
+- feedImageHeadline: 2–7 words, product-led hook aligned with the campaign (Latin / English strongly preferred for crisp on-image type). This exact spelling will be used as the primary line in a premium minimalist text panel on the feed image — no hashtags.
+- feedImageSubline: optional 3–12 words (offer, proof point, or shipping angle); use empty string if not needed. Same spelling discipline.`;
 
   const bannerRule = includeBanner
-    ? `- bannerImagePrompt: separate Flux prompt for a marketing banner with this composition: ${bannerShapeHint}. Match the campaign theme and feed image mood. Same quality bar: sophisticated commercial art direction, soft sophisticated lighting, cohesive palette, generous breathing room. Absolutely no fake slogans, giant headlines, coupons, watermarks, or random words in the image; no misspelled typography; avoid rendered text entirely unless it is faithful reproduction of real packaging from a reference photo.`
+    ? `- bannerImagePrompt: separate Flux prompt for a marketing banner with this composition: ${bannerShapeHint}. Match the campaign theme and feed image mood. Same quality bar: sophisticated commercial art direction, soft sophisticated lighting, cohesive palette, generous breathing room. Leave space for a clean text panel.
+- bannerImageHeadline: 2–7 words, banner-sized hook (can echo feedImageHeadline with a twist); Latin / English preferred for legibility; no hashtags.
+- bannerImageSubline: optional 3–12 words; empty string if not needed.`
     : "";
 
   const system = `You are an expert digital marketing copywriter for an organic products brand in India.
 You ALWAYS respond with ONLY valid JSON, no markdown, no explanation.
-JSON schema: { "postText": string, "hashtags": string[], "imagePrompt": string${bannerField}, "whatsappText": string }
+JSON schema: { "postText": string, "hashtags": string[], "imagePrompt": string${bannerField}${overlayFields}, "whatsappText": string }
 
 Rules:
 - postText: engaging social media post, 2-4 sentences, include emojis naturally

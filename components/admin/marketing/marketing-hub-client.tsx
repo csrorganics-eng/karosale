@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ADMIN_SETTINGS_MARKETING_CHANNELS } from "@/lib/admin-marketing-routes";
+import {
+  ADMIN_MARKETING_HOMEPAGE_BANNER,
+  ADMIN_SETTINGS_MARKETING_CHANNELS,
+} from "@/lib/admin-marketing-routes";
 
 export type CampaignListItem = {
   id: number;
@@ -51,9 +54,14 @@ export function MarketingHubClient({ campaigns, stats, showPublished }: Props) {
             .
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/marketing/new">+ New campaign</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href={ADMIN_MARKETING_HOMEPAGE_BANNER}>Shop homepage banner</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/marketing/new">+ New campaign</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
