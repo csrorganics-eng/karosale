@@ -125,7 +125,7 @@ export function ShopChatWidget() {
           )}
         >
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <p className="text-sm font-semibold">Shop assistant</p>
+            <p className="text-sm font-semibold">Shop companion</p>
             <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setOpen(false)}>
               <X className="h-4 w-4" />
             </Button>
@@ -172,8 +172,8 @@ export function ShopChatWidget() {
             )}
             {assistantReady && messages.length === 0 && (
               <p className="text-text-secondary">
-                Ask about products, delivery, or your recent orders (when signed in). I can connect you to a human if
-                needed.
+                Ask about seeds and natural products, organic growing tips, delivery, or your orders when signed in.
+                I can look up catalog items, suggest from your past purchases, and connect you to the team if needed.
               </p>
             )}
             {messages.map((m, i) => (
