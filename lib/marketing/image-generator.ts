@@ -167,7 +167,8 @@ export function preparePollinationsImagePrompt(
     enhanced = `${enhanced}${POLLINATIONS_TYPOGRAPHY_GUARD}`;
   }
   enhanced = clampImagePromptForPollinations(enhanced, MAX_POLLINATIONS_PROMPT_CHARS);
-  enhanced = clampForEncodedUrlLength(enhanced, 6500);
+  /** Leave headroom for `ref` + `sig` so total signed URL stays under common ~8k proxy limits. */
+  enhanced = clampForEncodedUrlLength(enhanced, 4000);
   return enhanced;
 }
 
@@ -210,6 +211,71 @@ function normalizeRefForSigning(ref: string | null | undefined): string {
     throw new Error("REFERENCE_IMAGE_URL_NOT_ALLOWED");
   }
   return r;
+}
+
+function originFromForwardedHeaders(request: Request): string | null {
+  const xfHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  if (!xfHost) return null;
+  const xfProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim()?.toLowerCase();
+  let proto: string;
+  if (xfProto === "http" || xfProto === "https") {
+    proto = xfProto;
+  } else {
+    try {
+      proto = new URL(request.url).protocol === "http:" ? "http" : "https";
+    } catch {
+      proto = "https";
+    }
+  }
+  try {
+    return new URL(`${proto}://${xfHost}`).origin;
+  } catch {
+    return null;
+  }
+}
+
+function originFromEnvCanonical(): string | null {
+  for (const raw of [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXTAUTH_URL, process.env.AUTH_URL]) {
+    const u = envSecret(raw);
+    if (!u) continue;
+    try {
+      const normalized = u.includes("://") ? u : `https://${u}`;
+      return new URL(normalized).origin;
+    } catch {
+      /* try next */
+    }
+  }
+  const vercel = envSecret(process.env.VERCEL_URL);
+  if (vercel) {
+    const hostOnly = vercel.replace(/^https?:\/\//, "").split("/")[0] ?? vercel;
+    return `https://${hostOnly}`;
+  }
+  return null;
+}
+
+/**
+ * Public origin for signed `/api/marketing/public-image` links.
+ * `new URL(request.url).origin` is wrong behind many reverse proxies (internal host, http vs https).
+ */
+export function marketingSignedImageOrigin(request: Request): string {
+  const fromForwarded = originFromForwardedHeaders(request);
+  if (fromForwarded) return fromForwarded;
+
+  let direct: URL;
+  try {
+    direct = new URL(request.url);
+  } catch {
+    const fallback = originFromEnvCanonical();
+    if (fallback) return fallback;
+    return "http://localhost:3000";
+  }
+
+  const host = direct.hostname.toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1") {
+    return direct.origin;
+  }
+
+  return originFromEnvCanonical() ?? direct.origin;
 }
 
 /**
@@ -292,7 +358,7 @@ export type FetchGenPollinationsImageOptions = {
 
 /**
  * Flux image via OpenAI-compatible POST. Optional `referenceImageUrl` for image-guided generation
- * (Pollinations `image` extension — URL array).
+ * (Pollinations `image` extension — URL(s), typically a single HTTPS URL in an array).
  */
 export async function fetchGenPollinationsImage(
   preparedPrompt: string,

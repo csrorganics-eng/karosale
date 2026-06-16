@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatINR, cn } from "@/lib/utils";
 import { buildShopHref } from "@/lib/shop-url";
+import { InCartSearchHint, InCartSearchThumbDot } from "@/components/storefront/in-cart-product-markers";
 
 interface SearchHit {
   id: string;
@@ -197,11 +198,15 @@ export function SearchBar({
                       —
                     </div>
                   )}
+                  <InCartSearchThumbDot productId={p.id} />
                 </div>
                 <span className="min-w-0 flex-1 text-sm font-medium leading-snug">{p.name}</span>
-                <span className="shrink-0 text-sm font-semibold text-primary">
-                  {formatINR(parseFloat(p.price))}
-                </span>
+                <div className="flex shrink-0 flex-col items-end justify-center gap-1">
+                  <span className="text-sm font-semibold tabular-nums text-primary">
+                    {formatINR(parseFloat(p.price))}
+                  </span>
+                  <InCartSearchHint productId={p.id} />
+                </div>
               </Link>
             ))}
 

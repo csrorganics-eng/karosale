@@ -26,6 +26,11 @@ interface Address {
   isDefault: boolean;
 }
 
+type CheckoutCartPayload = {
+  items: Array<{ total: string }>;
+  cart: { id: string } | null;
+};
+
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
@@ -46,10 +51,7 @@ export default function CheckoutPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { start: startGlobalLoading, stop: stopGlobalLoading, runWithLoading } = useLoadingOverlay();
-  const [cart, setCart] = useState<{
-    items: Array<{ total: string }>;
-    cart: { id: string } | null;
-  } | null>(null);
+  const [cart, setCart] = useState<CheckoutCartPayload | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressesLoaded, setAddressesLoaded] = useState(false);
   const [addressId, setAddressId] = useState("");
@@ -62,6 +64,7 @@ export default function CheckoutPage() {
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [isGift, setIsGift] = useState(false);
   const [giftMessage, setGiftMessage] = useState("");
+  const [cartLoadState, setCartLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [newAddr, setNewAddr] = useState({
     name: "",
     phone: "",
@@ -79,13 +82,38 @@ export default function CheckoutPage() {
     }
     if (status !== "authenticated") return;
 
+    let cancelled = false;
     setCheckoutError(null);
+    setCartLoadState("loading");
+    setCart(null);
 
-    fetch("/api/cart")
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success) setCart(json.data);
-      });
+    void (async () => {
+      try {
+        await fetch("/api/cart/merge-guest", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+      } catch {
+        /* non-fatal */
+      }
+      try {
+        const cartRes = await fetch("/api/cart", { cache: "no-store", credentials: "include" });
+        const cartJson = (await cartRes.json()) as {
+          success?: boolean;
+          data?: CheckoutCartPayload;
+        };
+        if (cancelled) return;
+        if (!cartJson.success) {
+          setCartLoadState("error");
+          return;
+        }
+        setCart(cartJson.data ?? { cart: null, items: [] });
+        setCartLoadState("ready");
+      } catch {
+        if (!cancelled) setCartLoadState("error");
+      }
+    })();
 
     fetch("/api/account/profile")
       .then((r) => r.json())
@@ -122,6 +150,10 @@ export default function CheckoutPage() {
           setKarmaBalance(json.data.karmaPoints);
         }
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [status, router]);
 
   const subtotal = cart?.items.reduce((s, i) => s + parseFloat(i.total), 0) ?? 0;
@@ -153,10 +185,16 @@ export default function CheckoutPage() {
 
   async function placeOrder() {
     setCheckoutError(null);
+    if (loading) return;
     if (!addressId) {
       setCheckoutError("Add or select a delivery address before placing your order.");
       return;
     }
+    if (!cart?.items?.length) {
+      setCheckoutError("Your bag is empty. Add something from the shop before checking out.");
+      return;
+    }
+
     setLoading(true);
     startGlobalLoading(
       paymentMethod === "cod" ? "Placing your order…" : "Preparing secure checkout…",
@@ -164,6 +202,7 @@ export default function CheckoutPage() {
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           addressId,
@@ -179,8 +218,17 @@ export default function CheckoutPage() {
               : undefined,
         }),
       });
-      const json = await res.json();
-      if (!json.success) {
+      const json = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        details?: unknown;
+        data?: {
+          order: { orderNumber: string; id: string };
+          razorpayOrderId?: string;
+          amount?: number;
+        };
+      };
+      if (!json.success || !json.data?.order) {
         const detail = formatZodDetails(json.details);
         setCheckoutError(detail ?? json.error ?? "Order failed");
         return;
@@ -193,56 +241,165 @@ export default function CheckoutPage() {
         return;
       }
 
-      const { razorpayOrderId, amount, order } = json.data;
+      const { razorpayOrderId, amount, order } = json.data as {
+        razorpayOrderId: string;
+        amount: number;
+        order: { orderNumber: string; id: string };
+      };
       const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
       if (!key || !window.Razorpay) {
-        setCheckoutError("Razorpay is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID for your environment.");
+        setCheckoutError(
+          "Razorpay is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID for your environment.",
+        );
         return;
       }
 
-      const rzp = new window.Razorpay({
-        key,
-        amount,
-        currency: "INR",
-        name: BRAND_NAME,
-        description: `Order ${order.orderNumber}`,
-        order_id: razorpayOrderId,
-        handler: async (response: {
-          razorpay_order_id: string;
-          razorpay_payment_id: string;
-          razorpay_signature: string;
-        }) => {
-          try {
-            await runWithLoading("Confirming payment…", async () => {
-              const verifyRes = await fetch("/api/orders/verify-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  orderId: order.id,
-                  razorpayOrderId: response.razorpay_order_id,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  razorpaySignature: response.razorpay_signature,
-                }),
+      const RazorpayCtor = window.Razorpay;
+      stopGlobalLoading();
+
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
+
+        const rzp = new RazorpayCtor({
+          key,
+          amount,
+          currency: "INR",
+          name: BRAND_NAME,
+          description: `Order ${order.orderNumber}`,
+          order_id: razorpayOrderId,
+          modal: {
+            ondismiss: () => {
+              finish();
+            },
+          },
+          handler: async (response: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              await runWithLoading("Confirming payment…", async () => {
+                const verifyRes = await fetch("/api/orders/verify-payment", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    orderId: order.id,
+                    razorpayOrderId: response.razorpay_order_id,
+                    razorpayPaymentId: response.razorpay_payment_id,
+                    razorpaySignature: response.razorpay_signature,
+                  }),
+                });
+                const verifyJson = (await verifyRes.json()) as { success?: boolean; error?: string };
+                if (!verifyRes.ok || !verifyJson.success) {
+                  throw new Error(
+                    verifyJson.error ?? `Payment confirmation failed (${verifyRes.status})`,
+                  );
+                }
               });
-              const verifyJson = (await verifyRes.json()) as { success?: boolean; error?: string };
-              if (!verifyRes.ok || !verifyJson.success) {
-                throw new Error(verifyJson.error ?? `Payment confirmation failed (${verifyRes.status})`);
-              }
-            });
-            router.push(`/checkout/success?order=${order.orderNumber}`);
-          } catch (e) {
-            setCheckoutError(e instanceof Error ? e.message : "Payment could not be confirmed. You can retry from checkout or contact support with your order number.");
-          }
-        },
+              emitCartUpdated();
+              router.push(`/checkout/success?order=${order.orderNumber}`);
+            } catch (e) {
+              setCheckoutError(
+                e instanceof Error
+                  ? e.message
+                  : "Payment could not be confirmed. You can retry from checkout or contact support with your order number.",
+              );
+            } finally {
+              finish();
+            }
+          },
+        });
+        rzp.open();
       });
-      rzp.open();
+    } catch (e) {
+      setCheckoutError(e instanceof Error ? e.message : "Something went wrong while starting checkout.");
     } finally {
       stopGlobalLoading();
       setLoading(false);
     }
   }
 
-  if (status === "loading" || !cart) {
+  async function retryLoadCart() {
+    if (status !== "authenticated") return;
+    setCheckoutError(null);
+    setCartLoadState("loading");
+    setCart(null);
+    try {
+      try {
+        await fetch("/api/cart/merge-guest", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+      } catch {
+        /* ignore */
+      }
+      const cartRes = await fetch("/api/cart", { cache: "no-store", credentials: "include" });
+      const cartJson = (await cartRes.json()) as { success?: boolean; data?: CheckoutCartPayload };
+      if (!cartJson.success) {
+        setCartLoadState("error");
+        return;
+      }
+      setCart(cartJson.data ?? { cart: null, items: [] });
+      setCartLoadState("ready");
+    } catch {
+      setCartLoadState("error");
+    }
+  }
+
+  if (status === "loading" || (status === "authenticated" && (cartLoadState === "idle" || cartLoadState === "loading"))) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <WaitingSpinner label="Loading checkout…" size="lg" />
+      </div>
+    );
+  }
+
+  if (status === "authenticated" && cartLoadState === "error") {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <h1 className="font-display text-2xl font-bold">Could not load your bag</h1>
+        <p className="mt-3 text-sm text-text-secondary">
+          Check your connection and try again. If the problem continues, sign out and back in.
+        </p>
+        <Button className="mt-6" size="lg" onClick={() => void retryLoadCart()}>
+          Retry
+        </Button>
+        <p className="mt-6 text-sm">
+          <Link href="/cart" className="text-primary hover:underline">
+            ← Back to cart
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "authenticated" && cartLoadState === "ready" && cart && cart.items.length === 0) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <h1 className="font-display text-2xl font-bold">Nothing to check out</h1>
+        <p className="mt-3 text-sm text-text-secondary">
+          Your bag is empty. Add products from the shop, then return here to pay.
+        </p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Button asChild size="lg">
+            <Link href="/shop">Browse shop</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/cart">View cart</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cart) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16">
         <WaitingSpinner label="Loading checkout…" size="lg" />
@@ -468,7 +625,7 @@ export default function CheckoutPage() {
               <Button
                 className="w-full"
                 size="lg"
-                disabled={loading || !addressId}
+                disabled={loading || !addressId || !cart.items.length}
                 onClick={() => void placeOrder()}
               >
                 {loading ? "Processing..." : "Place order"}

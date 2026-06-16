@@ -1,5 +1,8 @@
 import { verifySignedMarketingImageRequest, fetchGenPollinationsImage } from "@/lib/marketing/image-generator";
 
+/** Flux can exceed default Vercel / platform limits — allow time for Pollinations round-trip. */
+export const maxDuration = 120;
+
 function sniffImageContentType(buf: Buffer): string {
   if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
   if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {

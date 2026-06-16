@@ -27,13 +27,9 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
 
+  /** Account hub is the User icon only (same destination as the old “Account” link). */
   const tailNav =
-    status === "authenticated"
-      ? [
-          { href: "/account/profile", label: "Profile" },
-          { href: "/account", label: "Account" },
-        ]
-      : [{ href: "/account", label: "Account" }];
+    status === "authenticated" ? [{ href: "/account/profile", label: "Profile" }] : [];
 
   const navLinks = [...coreNav, ...tailNav];
 
@@ -52,7 +48,7 @@ export function Header() {
     syncCartBadge();
     window.addEventListener(CART_UPDATED_EVENT, syncCartBadge);
     return () => window.removeEventListener(CART_UPDATED_EVENT, syncCartBadge);
-  }, [syncCartBadge]);
+  }, [syncCartBadge, status]);
 
   return (
     <header
@@ -108,7 +104,7 @@ export function Header() {
               </span>
             )}
           </Button>
-          <Button variant="ghost" size="icon" className="hidden md:flex" asChild>
+          <Button variant="ghost" size="icon" asChild>
             <Link href="/account" aria-label="Account">
               <User className="h-5 w-5" />
             </Link>

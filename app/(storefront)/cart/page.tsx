@@ -33,7 +33,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
 
   async function loadCart() {
-    const res = await fetch("/api/cart");
+    const res = await fetch("/api/cart", { cache: "no-store" });
     const json = await res.json();
     if (json.success) setData(json.data);
     setLoading(false);

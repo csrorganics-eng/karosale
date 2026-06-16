@@ -7,8 +7,7 @@ import { abExperiments, searchRankingSettings, users } from "@/lib/db/schema";
 import { mergeWeightPatch, normalizeWeightPatch, segmentMatches } from "@/lib/merchandising/patch-weights";
 import type { RankingWeights, ShopperSegment } from "@/lib/merchandising/types";
 import { DEFAULT_RANKING_WEIGHTS } from "@/lib/merchandising/types";
-
-const CART_COOKIE = "csrorganics_cart_session";
+import { CART_SESSION_COOKIE_NAME } from "@/lib/cart-cookie";
 
 function rowToWeights(row: typeof searchRankingSettings.$inferSelect): RankingWeights {
   return {
@@ -46,7 +45,7 @@ export async function resolveRankingWeightsForRequest(): Promise<RankingWeights>
 
   const session = await auth();
   const cookieStore = await cookies();
-  const cartSession = cookieStore.get(CART_COOKIE)?.value ?? "";
+  const cartSession = cookieStore.get(CART_SESSION_COOKIE_NAME)?.value ?? "";
   const seed = session?.user?.id ?? cartSession ?? "anonymous";
 
   let totalOrders = 0;

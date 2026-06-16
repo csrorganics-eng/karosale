@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { jsonOk, jsonError } from "@/lib/api-response";
-import { buildSignedMarketingImageUrl, mergeMarketingImagePrompt } from "@/lib/marketing/image-generator";
+import {
+  buildSignedMarketingImageUrl,
+  marketingSignedImageOrigin,
+  mergeMarketingImagePrompt,
+} from "@/lib/marketing/image-generator";
 import { isAllowedMarketingReferenceImageUrl } from "@/lib/marketing/reference-image-url";
 
 const bodySchema = z.object({
@@ -28,7 +32,7 @@ export async function POST(request: Request) {
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) return jsonError("Invalid body", 400, parsed.error.flatten());
 
-    const origin = new URL(request.url).origin;
+    const origin = marketingSignedImageOrigin(request);
     const w = parsed.data.width ?? 1080;
     const h = parsed.data.height ?? 1080;
     const ref = parsed.data.referenceImageUrl?.trim() || null;

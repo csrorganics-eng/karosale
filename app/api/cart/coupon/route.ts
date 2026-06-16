@@ -6,7 +6,7 @@ import { carts } from "@/lib/db/schema";
 import { validateCoupon } from "@/lib/db/queries/coupons";
 import { getCartWithItems } from "@/lib/db/queries/cart";
 import { applyCouponSchema } from "@/lib/validations/cart";
-import { jsonOk, jsonError } from "@/lib/api-response";
+import { jsonOkPrivateNoStore, jsonError } from "@/lib/api-response";
 
 const couponBodySchema = applyCouponSchema.extend({
   cartId: z.string().uuid(),
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       .where(eq(carts.id, cartId));
 
     const data = await getCartWithItems(cartId);
-    return jsonOk({ ...data, freeShipping: result.freeShipping });
+    return jsonOkPrivateNoStore({ ...data, freeShipping: result.freeShipping });
   } catch (error) {
     console.error("[POST /api/cart/coupon]", error);
     return jsonError("Failed to apply coupon", 500);
@@ -55,7 +55,7 @@ export async function DELETE(request: Request) {
       .where(eq(carts.id, cartId));
 
     const data = await getCartWithItems(cartId);
-    return jsonOk(data);
+    return jsonOkPrivateNoStore(data);
   } catch (error) {
     console.error("[DELETE /api/cart/coupon]", error);
     return jsonError("Failed to remove coupon", 500);

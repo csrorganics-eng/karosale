@@ -9,7 +9,10 @@ Pollinations has indicated that **publishable keys (`pk_`) are deprecated**. Thi
 
 Signing uses **`AUTH_SECRET` or `NEXTAUTH_SECRET`** (the same secret Auth.js uses). Keep it stable in production or existing signed links break.
 
+Signed preview URLs must use the **same public origin** the browser uses (e.g. `https://your-domain.com`). The server builds that origin from, in order: **`x-forwarded-host` + `x-forwarded-proto`** (Vercel, nginx, etc.), then **`NEXT_PUBLIC_APP_URL`** / **`NEXTAUTH_URL`** / **`AUTH_URL`**, then **`VERCEL_URL`**, then the request URL. For local dev (`localhost` / `127.0.0.1`), the request URL is used so previews match how you open the app.
+
 ---
+
 
 ## Environment variables
 

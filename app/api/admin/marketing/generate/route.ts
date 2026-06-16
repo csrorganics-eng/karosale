@@ -8,7 +8,11 @@ import {
 } from "@/lib/ai-router";
 import { generateMarketingContent } from "@/lib/marketing/ai-content-generator";
 import { bannerDimensionsForAspect, parseMarketingBannerAspect } from "@/lib/marketing/banner-aspect";
-import { buildSignedMarketingImageUrl, mergeMarketingImagePrompt } from "@/lib/marketing/image-generator";
+import {
+  buildSignedMarketingImageUrl,
+  marketingSignedImageOrigin,
+  mergeMarketingImagePrompt,
+} from "@/lib/marketing/image-generator";
 import {
   OVERLAY_PRIMARY_MAX,
   OVERLAY_SECONDARY_MAX,
@@ -80,7 +84,7 @@ export async function POST(request: Request) {
 
     const bannerAspect = parseMarketingBannerAspect(parsed.data.bannerAspect);
     const { width: bw, height: bh } = bannerDimensionsForAspect(bannerAspect);
-    const origin = new URL(request.url).origin;
+    const origin = marketingSignedImageOrigin(request);
     const refine = parsed.data.imageRefinementPrompt?.trim() || "";
 
     if (parsed.data.kind === "product") {

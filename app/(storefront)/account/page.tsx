@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeAuthCallbackError } from "@/lib/auth-errors";
+import { emitCartUpdated } from "@/lib/cart-events";
 
 function AccountPageContent() {
   const { data: session, status, update } = useSession();
@@ -175,6 +176,16 @@ function AccountPageContent() {
               variant="ghost"
               onClick={async () => {
                 await signOut({ redirect: false });
+                try {
+                  await fetch("/api/cart/guest-session", {
+                    method: "POST",
+                    credentials: "include",
+                    cache: "no-store",
+                  });
+                } catch {
+                  /* non-fatal */
+                }
+                emitCartUpdated();
                 // Avoid default sign-out redirect: it uses AUTH_URL / NEXTAUTH_URL, which on Vercel
                 // can point at a removed preview and show DEPLOYMENT_NOT_FOUND. Same-origin navigation is safe.
                 window.location.replace(`${window.location.origin}/`);

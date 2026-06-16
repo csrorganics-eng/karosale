@@ -2,10 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Leaf, Star, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatINR, cn } from "@/lib/utils";
 import { WishlistToggle } from "@/components/storefront/WishlistToggle";
 import { getProductOfferDisplay } from "@/lib/merchandising/product-offer-display";
+import { InCartImagePill, ProductCardCartCta } from "@/components/storefront/in-cart-product-markers";
 
 export interface ProductCardProps {
   id: string;
@@ -83,6 +83,8 @@ export function ProductCard({
           productId={id}
           className="absolute right-2 top-2 z-30 rounded-full border border-white/40 bg-white/95 shadow-md ring-1 ring-black/[0.04] backdrop-blur-sm transition-colors hover:bg-white"
         />
+
+        <InCartImagePill productId={id} clearBottomOverlay={Boolean(contextLabel || isOrganicCertified)} />
 
         <div className="pointer-events-none absolute left-2 top-2 z-20 flex max-w-[calc(100%-3.5rem)] flex-col items-start gap-1.5">
           {salePct != null && salePct > 0 && (
@@ -168,13 +170,7 @@ export function ProductCard({
           {stockLabel.text}
         </Badge>
 
-        <Button className="mt-4 w-full" disabled={stockQty === 0} asChild={stockQty > 0}>
-          {stockQty > 0 ? (
-            <Link href={`/shop/${slug}`}>Add to Cart</Link>
-          ) : (
-            <span>Notify Me</span>
-          )}
-        </Button>
+        <ProductCardCartCta productId={id} slug={slug} stockQty={stockQty} />
       </div>
     </article>
   );

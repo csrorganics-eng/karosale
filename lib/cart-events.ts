@@ -11,7 +11,7 @@ export function emitCartUpdated(): void {
 
 export async function fetchCartItemCount(): Promise<number> {
   try {
-    const res = await fetch("/api/cart");
+    const res = await fetch("/api/cart", { cache: "no-store" });
     const json = (await res.json()) as {
       success?: boolean;
       data?: { items?: Array<{ qty?: number }> };

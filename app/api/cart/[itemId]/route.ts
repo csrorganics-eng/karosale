@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { cartItems } from "@/lib/db/schema";
 import { getCartWithItems } from "@/lib/db/queries/cart";
 import { updateCartItemSchema } from "@/lib/validations/cart";
-import { jsonOk, jsonError } from "@/lib/api-response";
+import { jsonOkPrivateNoStore, jsonError } from "@/lib/api-response";
 
 export async function PATCH(
   request: Request,
@@ -33,7 +33,7 @@ export async function PATCH(
       .where(eq(cartItems.id, itemId));
 
     const data = await getCartWithItems(item.cartId);
-    return jsonOk(data);
+    return jsonOkPrivateNoStore(data);
   } catch (error) {
     console.error("[PATCH /api/cart/[itemId]]", error);
     return jsonError("Failed to update cart", 500);
@@ -55,7 +55,7 @@ export async function DELETE(
 
     await db.delete(cartItems).where(eq(cartItems.id, itemId));
     const data = await getCartWithItems(item.cartId);
-    return jsonOk(data);
+    return jsonOkPrivateNoStore(data);
   } catch (error) {
     console.error("[DELETE /api/cart/[itemId]]", error);
     return jsonError("Failed to remove item", 500);

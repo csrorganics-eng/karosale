@@ -92,8 +92,11 @@ export default async function ProductDetailPage({
             <Image
               src={primaryImage.url}
               alt={primaryImage.altText ?? product.name}
+              fill
               quality={85}
               sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+              priority
             />
           ) : (
             <div className="flex h-full items-center justify-center text-8xl">🌿</div>

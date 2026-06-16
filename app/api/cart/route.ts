@@ -5,24 +5,21 @@ import { db } from "@/lib/db";
 import { cartItems, products } from "@/lib/db/schema";
 import { findOrCreateCart, getCartWithItems } from "@/lib/db/queries/cart";
 import { addToCartSchema } from "@/lib/validations/cart";
-import { jsonOk, jsonError } from "@/lib/api-response";
-
-const CART_COOKIE = "csrorganics_cart_session";
+import { jsonOkPrivateNoStore, jsonError } from "@/lib/api-response";
+import {
+  CART_SESSION_COOKIE_NAME,
+  cartSessionCookieOptions,
+  newCartSessionId,
+} from "@/lib/cart-cookie";
 
 async function resolveCart() {
   const session = await auth();
   const cookieStore = await cookies();
-  let sessionId = cookieStore.get(CART_COOKIE)?.value;
+  let sessionId = cookieStore.get(CART_SESSION_COOKIE_NAME)?.value;
 
   if (!sessionId && !session?.user?.id) {
-    sessionId = crypto.randomUUID();
-    cookieStore.set(CART_COOKIE, sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30,
-      path: "/",
-    });
+    sessionId = newCartSessionId();
+    cookieStore.set(CART_SESSION_COOKIE_NAME, sessionId, cartSessionCookieOptions());
   }
 
   return findOrCreateCart(session?.user?.id, sessionId);
@@ -32,7 +29,7 @@ export async function GET() {
   try {
     const cart = await resolveCart();
     const data = await getCartWithItems(cart.id);
-    return jsonOk(data);
+    return jsonOkPrivateNoStore(data);
   } catch (error) {
     console.error("[GET /api/cart]", error);
     return jsonError("Failed to fetch cart", 500);
@@ -100,7 +97,7 @@ export async function POST(request: Request) {
     }
 
     const data = await getCartWithItems(cart.id);
-    return jsonOk(data);
+    return jsonOkPrivateNoStore(data);
   } catch (error) {
     console.error("[POST /api/cart]", error);
     return jsonError("Failed to add to cart", 500);
