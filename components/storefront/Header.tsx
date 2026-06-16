@@ -14,6 +14,8 @@ import { CART_UPDATED_EVENT, fetchCartItemCount } from "@/lib/cart-events";
 
 const coreNav = [
   { href: "/shop", label: "Shop" },
+  { href: "/categories", label: "Categories" },
+  { href: "/blog", label: "Journal" },
   { href: "/shop?isOrganic=true", label: "Organic" },
   { href: "/loyalty", label: "Karma Rewards" },
 ];

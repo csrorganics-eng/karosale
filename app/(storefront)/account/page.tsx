@@ -127,6 +127,9 @@ function AccountPageContent() {
                 <Link href="/wishlist">Wishlist</Link>
               </Button>
               <Button variant="outline" asChild>
+                <Link href="/account/affiliate">Affiliate program</Link>
+              </Button>
+              <Button variant="outline" asChild>
                 <Link href="/loyalty">Karma Rewards</Link>
               </Button>
               {session.user.role === "admin" && (

@@ -11,6 +11,7 @@ import {
   BarChart3,
   MessageSquareText,
   SlidersHorizontal,
+  Share2,
 } from "lucide-react";
 
 export type AdminNavItem = {
@@ -28,6 +29,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/reviews", label: "Reviews", icon: MessageSquareText },
   { href: "/admin/karma-rewards", label: "Karma Rewards", icon: Sparkles },
   { href: "/admin/marketing", label: "Marketing", icon: Megaphone },
+  { href: "/admin/affiliate", label: "Affiliate", icon: Share2 },
   { href: "/admin/merchandising", label: "Search & A/B", icon: SlidersHorizontal },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/customers", label: "Customers", icon: Users },

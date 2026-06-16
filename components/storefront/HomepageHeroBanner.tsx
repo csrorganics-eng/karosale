@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { SiteHomepageBannerPublic } from "@/lib/db/queries/site-homepage-banner";
+import { homepageBannerStorefrontImageShellClass } from "@/lib/marketing/banner-aspect";
 import { cn } from "@/lib/utils";
 
 type Props = { banner: SiteHomepageBannerPublic };
@@ -29,13 +30,15 @@ function BannerShell({ href, children }: { href: string | null; children: ReactN
 
 /**
  * Optional storefront strip — only mounted when `banner` is returned from DB.
- * Fixed aspect + object-cover avoids CLS; omits entirely when disabled (no spacer).
+ * Frame matches stored {@link SiteHomepageBannerPublic.bannerAspect} (same as Marketing Studio).
+ * Uses `object-contain` so the full creative stays visible (no surprise crops after publish).
  */
 export function HomepageHeroBanner({ banner }: Props) {
   const alt =
     [banner.headline, banner.subheadline].filter(Boolean).join(" — ") || "Featured announcement";
   const hasCopy = Boolean(banner.headline?.trim() || banner.subheadline?.trim());
   const hasLink = Boolean(banner.linkHref?.trim());
+  const frameClass = homepageBannerStorefrontImageShellClass(banner.bannerAspect);
 
   return (
     <section className="border-b border-border/50 bg-gradient-to-b from-surface-subtle/80 via-background to-background">
@@ -51,15 +54,15 @@ export function HomepageHeroBanner({ banner }: Props) {
                 "group-hover:border-primary/20 group-hover:shadow-[0_20px_50px_-28px_rgb(0_0_0_/0.45)]",
             )}
           >
-            <div className="relative aspect-[21/9] w-full max-h-[min(42vw,22rem)] min-h-[8.5rem] bg-muted sm:max-h-[min(36vw,20rem)] md:max-h-[min(32vw,19rem)]">
+            <div className={frameClass}>
               <Image
                 src={banner.imageUrl}
                 alt={alt}
                 fill
                 priority
                 unoptimized={banner.imageUrl.startsWith("http://")}
-                sizes="(max-width: 1280px) 100vw, 1280px"
-                className="object-cover object-center"
+                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 720px"
+                className="object-contain object-center"
               />
               <div
                 className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/[0.42] via-black/[0.05] to-transparent"

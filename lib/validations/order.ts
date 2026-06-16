@@ -8,6 +8,7 @@ export const createOrderSchema = z.object({
   notes: z.string().max(500).optional(),
   isGift: z.boolean().default(false),
   giftMessage: z.string().max(300).optional(),
+  affiliateUsername: z.string().min(2).max(50).optional(),
 });
 
 export const verifyPaymentSchema = z.object({

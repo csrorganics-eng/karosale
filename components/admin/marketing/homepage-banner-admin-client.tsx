@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   BANNER_ASPECT_OPTIONS,
   bannerDimensionsForAspect,
-  bannerPreviewAspectClass,
+  homepageBannerStorefrontImageShellClass,
+  parseMarketingBannerAspect,
   type MarketingBannerAspect,
 } from "@/lib/marketing/banner-aspect";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ type BannerApi = {
   headline: string | null;
   subheadline: string | null;
   isEnabled: boolean;
+  bannerAspect?: MarketingBannerAspect | string | null;
   updatedAt: string | null;
 };
 
@@ -69,6 +71,7 @@ export function HomepageBannerAdminClient() {
       setSubheadline(b.subheadline ?? "");
       setIsLive(b.isEnabled);
       setUpdatedAt(b.updatedAt);
+      setBannerAspect(parseMarketingBannerAspect(b.bannerAspect ?? undefined));
     }
   }, []);
 
@@ -189,6 +192,7 @@ export function HomepageBannerAdminClient() {
         setSubheadline(b.subheadline ?? "");
         setIsLive(b.isEnabled);
         setUpdatedAt(b.updatedAt);
+        setBannerAspect(parseMarketingBannerAspect(b.bannerAspect ?? undefined));
       }
     } finally {
       setSaving(false);
@@ -209,6 +213,7 @@ export function HomepageBannerAdminClient() {
       headline: headline.trim() || null,
       subheadline: subheadline.trim() || null,
       isEnabled: true,
+      bannerAspect,
     });
   }
 
@@ -262,8 +267,8 @@ export function HomepageBannerAdminClient() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-xs leading-relaxed text-text-secondary">
-            Optional catalog reference keeps packshots aligned with a SKU. Homepage strip uses a wide aspect; pick
-            the shape that fits your creative, then generate a signed preview URL (same pipeline as Marketing Studio).
+            Optional catalog reference keeps packshots aligned with a SKU. The live storefront uses the same frame as
+            this preview (aspect + safe scaling) so what you see here matches the shop after publish.
           </p>
           <div className="space-y-2">
             <span className="text-sm font-medium">Optional reference product</span>
@@ -379,8 +384,8 @@ export function HomepageBannerAdminClient() {
         <CardContent className="space-y-4">
           <div
             className={cn(
-              "relative w-full overflow-hidden rounded-xl border border-border/80 bg-muted shadow-inner",
-              bannerPreviewAspectClass(bannerAspect),
+              "overflow-hidden rounded-xl border border-border/80 bg-muted shadow-inner",
+              homepageBannerStorefrontImageShellClass(bannerAspect),
             )}
           >
             {imageUrl ? (
@@ -388,7 +393,7 @@ export function HomepageBannerAdminClient() {
               <img
                 src={imageUrl}
                 alt=""
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain object-center"
                 onError={() => setPreviewFailed(true)}
               />
             ) : (
@@ -459,6 +464,7 @@ export function HomepageBannerAdminClient() {
                 linkHref: linkHref.trim() || null,
                 headline: headline.trim() || null,
                 subheadline: subheadline.trim() || null,
+                bannerAspect,
               })
             }
           >

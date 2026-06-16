@@ -30,14 +30,21 @@ export function verifyPaymentSignature(
   return expected === signature;
 }
 
+/**
+ * Verifies `X-Razorpay-Signature` for webhook payloads (raw request body string).
+ * Uses the secret from **Razorpay Dashboard → Webhooks → your endpoint → signing secret**
+ * (`RAZORPAY_WEBHOOK_SECRET` — separate from `RAZORPAY_KEY_SECRET` used for payment signatures).
+ */
 export function verifyWebhookSignature(body: string, signature: string): boolean {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const expected = crypto
-    .createHmac("sha256", secret)
-    .update(body)
-    .digest("hex");
-  return expected === signature;
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
+  if (!secret || !signature) return false;
+  const expected = crypto.createHmac("sha256", secret).update(body).digest("hex");
+  if (signature.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature, "utf8"), Buffer.from(expected, "utf8"));
+  } catch {
+    return false;
+  }
 }
 
 export async function createRazorpayOrder(

@@ -282,3 +282,36 @@ export async function searchProducts(
     imageUrl,
   }));
 }
+
+export async function listProductCardsByVendor(vendorId: string, limit = 48) {
+  const rows = await db
+    .select({
+      id: products.id,
+      name: products.name,
+      slug: products.slug,
+      shortDescription: products.shortDescription,
+      price: products.price,
+      comparePrice: products.comparePrice,
+      promotionalDiscountPct: products.promotionalDiscountPct,
+      stockQty: products.stockQty,
+      lowStockThreshold: products.lowStockThreshold,
+      isOrganicCertified: products.isOrganicCertified,
+      isFeatured: products.isFeatured,
+      isBestseller: products.isBestseller,
+      avgRating: products.avgRating,
+      reviewCount: products.reviewCount,
+      categorySlug: categories.slug,
+      categoryName: categories.name,
+      imageUrl: productImages.url,
+    })
+    .from(products)
+    .innerJoin(categories, eq(products.categoryId, categories.id))
+    .leftJoin(
+      productImages,
+      and(eq(productImages.productId, products.id), eq(productImages.isPrimary, true)),
+    )
+    .where(and(eq(products.vendorId, vendorId), eq(products.isActive, true), isNull(products.deletedAt)))
+    .orderBy(desc(products.isFeatured), desc(products.totalSales))
+    .limit(limit);
+  return rows;
+}

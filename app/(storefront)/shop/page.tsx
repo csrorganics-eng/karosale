@@ -3,6 +3,10 @@ import { listProducts } from "@/lib/db/queries/products";
 import { ProductCard } from "@/components/storefront/ProductCard";
 import { Button } from "@/components/ui/button";
 import { buildShopHref } from "@/lib/shop-url";
+import type { Metadata } from "next";
+import { generateSearchMetadata, buildAlternateUrls, buildCanonicalUrl } from "@/lib/seo/metadata";
+import { seoTranslations } from "@/lib/seo/translations";
+import { truncateDescription } from "@/lib/seo/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -10,18 +14,37 @@ export async function generateMetadata({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}): Promise<Metadata> {
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q.trim() : "";
   if (q) {
-    return {
-      title: `“${q}” — Search results`,
-      description: `Products matching “${q}” at CSR Organics.`,
-    };
+    const { total } = await listProducts({
+      page: 1,
+      limit: 1,
+      category: undefined,
+      search: q,
+      sort: "relevance",
+      isOrganic: false,
+      inStock: false,
+    });
+    return generateSearchMetadata(q, total);
   }
+  const page = Number(params.page ?? 1);
+  const title =
+    page > 1 ? `${seoTranslations.en.shopTitle} — Page ${page}` : seoTranslations.en.shopTitle;
   return {
-    title: "Shop — Organic Products",
-    description: "Browse certified organic seeds, fertilizers, groceries and garden essentials.",
+    title,
+    description: truncateDescription(seoTranslations.en.shopDescription, 160),
+    alternates: {
+      canonical: buildCanonicalUrl("/shop"),
+      languages: buildAlternateUrls("/shop", ["en-IN", "hi-IN", "x-default"]).languages,
+    },
+    robots: page > 1 ? { index: false, follow: true } : { index: true, follow: true },
+    openGraph: {
+      title,
+      description: truncateDescription(seoTranslations.en.shopDescription, 160),
+      url: buildCanonicalUrl("/shop"),
+    },
   };
 }
 

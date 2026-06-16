@@ -80,6 +80,8 @@ Coupons: `TESTSHIP`, `SAVE10`, `WELCOME50` (referral welcome)
 4. Preview: `NEXT_PUBLIC_IS_PREVIEW=true`, Razorpay test keys
 5. Production: merge to `main` after QA sign-off
 
+**Remaining work before production:** [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) (affiliate payouts UI, RazorpayX orchestration, legal, ops checklist).
+
 ## Scripts
 
 | Command           | Description              |

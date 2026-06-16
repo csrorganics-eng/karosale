@@ -110,7 +110,7 @@ Never set `SEED_DATABASE=true` on Production.
 
 | Service | URL to register |
 |---------|-----------------|
-| **Razorpay webhooks** | `https://YOUR_DOMAIN/api/webhooks/razorpay` |
+| **Razorpay webhooks** | `https://YOUR_DOMAIN/api/webhooks/razorpay` — create in [Razorpay Dashboard → Webhooks](https://dashboard.razorpay.com/app/webhooks). Use the **webhook signing secret** as `RAZORPAY_WEBHOOK_SECRET` (not the API key secret). **Active events:** `payment.captured`, `payment.failed`, `payment.refunded` (refund updates order + reverses affiliate commissions when fully refunded). Docs: [Webhooks overview](https://razorpay.com/docs/webhooks/). |
 | **Shiprocket webhooks** | `https://YOUR_DOMAIN/api/webhooks/shiprocket` |
 | **Inngest** | `https://YOUR_DOMAIN/api/inngest` (sync in Inngest dashboard) |
 | **Auth.js** | `NEXTAUTH_URL` (and `AUTH_URL` if set) must match the **exact** URL you open in the browser for that environment (production domain or current preview URL). If they point at an old or deleted Vercel deployment, sign-out and OAuth redirects can show **404 DEPLOYMENT_NOT_FOUND**. The app signs out using same-origin navigation to avoid that; still keep env URLs in sync. |
@@ -164,6 +164,8 @@ NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN npm run smoke
 ---
 
 ## 10. Production release
+
+See **[docs/PRODUCTION-READINESS.md](./PRODUCTION-READINESS.md)** for remaining product gaps (affiliate payouts, RazorpayX, legal) beyond this deploy runbook.
 
 1. QA signs off on preview
 2. Merge to `main`

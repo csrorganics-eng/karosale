@@ -5,6 +5,7 @@ import {
   getSiteHomepageBannerRow,
   patchSiteHomepageBanner,
 } from "@/lib/db/queries/site-homepage-banner";
+import { parseMarketingBannerAspect } from "@/lib/marketing/banner-aspect";
 import { normalizeMarketingStoredImageUrl } from "@/lib/marketing/marketing-stored-image-url";
 
 const optionalLink = z.preprocess(
@@ -38,6 +39,7 @@ const patchSchema = z.object({
   headline: optionalText.optional(),
   subheadline: optionalText.optional(),
   isEnabled: z.boolean().optional(),
+  bannerAspect: z.enum(["16:9", "9:16", "1:1"]).optional(),
 });
 
 function normalizeStoredImageUrl(url: string | null | undefined): string | null {
@@ -56,6 +58,7 @@ export async function GET() {
         headline: row.headline,
         subheadline: row.subheadline,
         isEnabled: row.isEnabled,
+        bannerAspect: parseMarketingBannerAspect(row.bannerAspect),
         updatedAt: row.updatedAt?.toISOString?.() ?? null,
       },
     });
@@ -113,6 +116,7 @@ export async function PATCH(request: Request) {
       ...(parsed.data.headline !== undefined ? { headline: parsed.data.headline } : {}),
       ...(parsed.data.subheadline !== undefined ? { subheadline: parsed.data.subheadline } : {}),
       ...(parsed.data.isEnabled !== undefined ? { isEnabled: parsed.data.isEnabled } : {}),
+      ...(parsed.data.bannerAspect !== undefined ? { bannerAspect: parsed.data.bannerAspect } : {}),
     });
 
     const row = await getSiteHomepageBannerRow();
@@ -124,6 +128,7 @@ export async function PATCH(request: Request) {
             headline: row.headline,
             subheadline: row.subheadline,
             isEnabled: row.isEnabled,
+            bannerAspect: parseMarketingBannerAspect(row.bannerAspect),
             updatedAt: row.updatedAt?.toISOString?.() ?? null,
           }
         : null,

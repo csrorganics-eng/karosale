@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { eq, desc, isNull, and } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "@/lib/db";
@@ -15,8 +16,25 @@ import { PersonalizedForYouRail } from "@/components/storefront/PersonalizedForY
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { formatINR, cn } from "@/lib/utils";
+import { JsonLdMulti } from "@/components/seo/JsonLd";
+import { generateItemListSchema, generateLocalBusinessSchema } from "@/lib/seo/structured-data";
+import { buildAlternateUrls } from "@/lib/seo/metadata";
+import { seoTranslations } from "@/lib/seo/translations";
+import { truncateDescription } from "@/lib/seo/utils";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: seoTranslations.en.homeTitle,
+    description: truncateDescription(seoTranslations.en.homeDescription, 160),
+    alternates: buildAlternateUrls("/", ["en-IN", "hi-IN", "x-default"]),
+    openGraph: {
+      title: seoTranslations.en.homeTitle,
+      description: truncateDescription(seoTranslations.en.homeDescription, 160),
+    },
+  };
+}
 
 async function getHomeData(userId?: string | null) {
   const [cats, bestsellers, bundles, homepageBanner] = await Promise.all([
@@ -82,6 +100,15 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLdMulti
+        items={[
+          generateItemListSchema(
+            bestsellers.map((p) => ({ name: p.name, slug: p.slug })),
+            "Bestselling organic products",
+          ) as unknown as Record<string, unknown>,
+          generateLocalBusinessSchema() as unknown as Record<string, unknown>,
+        ]}
+      />
       {homepageBanner ? <HomepageHeroBanner banner={homepageBanner} /> : null}
       <section className="relative flex min-h-[70vh] items-center overflow-hidden md:min-h-[90vh]">
         <div

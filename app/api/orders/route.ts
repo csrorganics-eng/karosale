@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { auth, requireAuth } from "@/lib/auth";
 import { db, type Database } from "@/lib/db";
-import { cartItems, carts, couponUsage, coupons, loyaltyTransactions, orderItems, orders, users, addresses } from "@/lib/db/schema";
+import { cartItems, carts, couponUsage, coupons, loyaltyTransactions, orderItems, orders, users, addresses, affiliateReferrals } from "@/lib/db/schema";
 import { findOrCreateCart, getCartWithItems } from "@/lib/db/queries/cart";
 import { validateCoupon } from "@/lib/db/queries/coupons";
 import { createOrderSchema } from "@/lib/validations/order";
@@ -21,6 +21,7 @@ import {
 import { createRazorpayOrder } from "@/lib/razorpay";
 import { emitCodCheckoutEvents } from "@/lib/inngest/emit-order-events";
 import { jsonOk, jsonError } from "@/lib/api-response";
+import { markLatestClickConverted, resolveCheckoutAffiliate } from "@/lib/affiliate/engine";
 
 type OrderPersistTx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -53,7 +54,7 @@ async function computeCheckoutTotals(
   cartRecord: typeof carts.$inferSelect | null | undefined,
   shippingType: "standard" | "express",
   karmaPointsRequested: number,
-  options?: { couponCodeOverride?: string },
+  options?: { couponCodeOverride?: string; affiliateDiscountRupees?: number },
 ) {
   const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!user) throw new Error("User not found");
@@ -61,6 +62,12 @@ async function computeCheckoutTotals(
   const tier = await getTierForPoints(user.karmaPoints);
   const tierDiscount = computeTierDiscount(subtotal, tier);
   const merchandiseAfterTier = Math.max(0, subtotal - tierDiscount);
+
+  const affiliateDiscountRupees = Math.max(
+    0,
+    Math.min(options?.affiliateDiscountRupees ?? 0, merchandiseAfterTier),
+  );
+  const merchandiseAfterAffiliate = Math.max(0, merchandiseAfterTier - affiliateDiscountRupees);
 
   const couponCode =
     options?.couponCodeOverride?.trim() ||
@@ -72,7 +79,7 @@ async function computeCheckoutTotals(
   let appliedCouponCode: string | null = null;
 
   if (couponCode) {
-    const v = await validateCoupon(couponCode, userId, merchandiseAfterTier);
+    const v = await validateCoupon(couponCode, userId, merchandiseAfterAffiliate);
     if (!v.valid) {
       throw new Error(v.error ?? "Coupon is no longer valid for this cart");
     }
@@ -84,7 +91,7 @@ async function computeCheckoutTotals(
     appliedCouponCode = v.coupon.code;
   }
 
-  const afterCoupon = Math.max(0, merchandiseAfterTier - couponDiscount);
+  const afterCoupon = Math.max(0, merchandiseAfterAffiliate - couponDiscount);
 
   const maxKarmaRupees = afterCoupon * 0.5;
   const maxPointsUsable = Math.floor(maxKarmaRupees * KARMA_REDEMPTION_RATE);
@@ -99,7 +106,7 @@ async function computeCheckoutTotals(
   let shippingCharge =
     shippingType === "express" ? EXPRESS_SHIPPING_CHARGE : STANDARD_SHIPPING_CHARGE;
 
-  const netMerch = merchandiseAfterTier - couponDiscount;
+  const netMerch = merchandiseAfterAffiliate - couponDiscount;
   const qualifiesThreshold = netMerch >= FREE_SHIPPING_THRESHOLD;
   const tierFree = tierGrantsFreeShipping(tier, netMerch);
 
@@ -111,6 +118,7 @@ async function computeCheckoutTotals(
 
   return {
     tierDiscount,
+    affiliateDiscount: affiliateDiscountRupees,
     couponDiscount,
     effectiveKarmaPoints,
     karmaDiscount,
@@ -143,6 +151,8 @@ async function persistOrder(
     items: Awaited<ReturnType<typeof getCartWithItems>>["items"];
     cartId: string;
     deductKarmaNow: boolean;
+    affiliateId?: number | null;
+    affiliateDiscount?: number;
   },
 ) {
   const {
@@ -165,6 +175,8 @@ async function persistOrder(
     items,
     cartId,
     deductKarmaNow,
+    affiliateId,
+    affiliateDiscount,
   } = params;
 
   let karmaBalanceAfter: number | null = null;
@@ -208,10 +220,25 @@ async function persistOrder(
       notes: notes ?? null,
       isGift,
       giftMessage: giftMessage ?? null,
+      affiliateId: affiliateId ?? null,
+      affiliateDiscountAmount: String(affiliateDiscount ?? 0),
     })
     .returning();
 
   if (!created) throw new Error("Failed to create order");
+
+  if (affiliateId != null && affiliateId > 0) {
+    await tx
+      .insert(affiliateReferrals)
+      .values({
+        affiliateId,
+        referredUserId: sessionUserId,
+        referralType: "purchase",
+        discountApplied: String(affiliateDiscount ?? 0),
+        registrationCommissionPaid: false,
+      })
+      .onConflictDoNothing();
+  }
 
   if (appliedCouponCode) {
     const [coupon] = await tx
@@ -286,7 +313,7 @@ export async function POST(request: Request) {
       return jsonError("Invalid request", 400, parsed.error.flatten());
     }
 
-    const { addressId, paymentMethod, shippingType, karmaPointsUsed, notes, isGift, giftMessage } =
+    const { addressId, paymentMethod, shippingType, karmaPointsUsed, notes, isGift, giftMessage, affiliateUsername } =
       parsed.data;
 
     const [shippingAddress] = await db
@@ -321,6 +348,15 @@ export async function POST(request: Request) {
     const tierDiscountPreview = computeTierDiscount(subtotal, tierPreview);
     const merchandiseAfterTierPreview = Math.max(0, subtotal - tierDiscountPreview);
 
+    const { affiliateId: checkoutAffiliateId, affiliateDiscount: checkoutAffiliateDiscount } =
+      await resolveCheckoutAffiliate({
+        buyerUserId: session.user.id,
+        totalOrders: userRow.totalOrders,
+        cookieHeader: request.headers.get("cookie"),
+        manualAffiliateUsername: affiliateUsername ?? null,
+        merchandiseAfterTier: merchandiseAfterTierPreview,
+      });
+
     let welcomeCouponOptions: { couponCodeOverride?: string } | undefined;
     if (
       !cartRecord?.couponCode?.trim() &&
@@ -345,7 +381,10 @@ export async function POST(request: Request) {
         cartRecord,
         shippingType,
         karmaPointsUsed,
-        welcomeCouponOptions,
+        {
+          ...welcomeCouponOptions,
+          affiliateDiscountRupees: checkoutAffiliateDiscount,
+        },
       );
     } catch (e) {
       return jsonError(e instanceof Error ? e.message : "Checkout validation failed", 400);
@@ -353,6 +392,7 @@ export async function POST(request: Request) {
 
     const {
       tierDiscount,
+      affiliateDiscount,
       couponDiscount,
       appliedCouponCode,
       effectiveKarmaPoints,
@@ -384,8 +424,16 @@ export async function POST(request: Request) {
         items,
         cartId: cart.id,
         deductKarmaNow: paymentMethod === "cod",
+        affiliateId: checkoutAffiliateId,
+        affiliateDiscount: affiliateDiscount,
       }),
     );
+
+    if (order.affiliateId) {
+      await markLatestClickConverted(order.affiliateId, order.id).catch((e) =>
+        console.warn("[orders] markLatestClickConverted", e),
+      );
+    }
 
     if (paymentMethod === "cod") {
       await emitCodCheckoutEvents(order.id);

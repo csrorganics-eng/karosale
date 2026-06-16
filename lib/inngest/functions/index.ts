@@ -13,8 +13,11 @@ import { invoiceGeneratorFunction } from "./invoice-generator";
 import { loyaltyExpireFunction } from "./loyalty-expire";
 import { campaignHeartbeatFunction } from "./campaign-heartbeat";
 
+import { affiliateOrderCommissionFunction } from "./affiliate-order-commission";
+
 export const inngestFunctions = [
   orderPlacedFunction,
+  affiliateOrderCommissionFunction,
   orderStatusChangedFunction,
   packagingTagGenerateFunction,
   lowStockAlertFunction,

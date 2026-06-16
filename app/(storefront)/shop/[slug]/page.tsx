@@ -1,14 +1,21 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Leaf, Tag } from "lucide-react";
 import { getProductBySlug } from "@/lib/db/queries/products";
+import { listApprovedReviewsForProduct } from "@/lib/db/queries/reviews-public";
 import { Badge } from "@/components/ui/badge";
 import { formatINR, cn } from "@/lib/utils";
 import { getProductOfferDisplay } from "@/lib/merchandising/product-offer-display";
 import { AddToCartSection } from "@/components/storefront/AddToCartSection";
+import { AffiliateShareButton } from "@/components/affiliate/AffiliateShareButton";
 import { ProductViewBeacon } from "@/components/storefront/ProductViewBeacon";
 import { SubscribeSection } from "@/components/storefront/SubscribeSection";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { generateProductMetadata, productNotFoundMetadata } from "@/lib/seo/metadata";
+import { generateProductSchema, generateProductReviewNodes } from "@/lib/seo/structured-data";
+import { getProductBreadcrumbs } from "@/lib/seo/breadcrumbs";
+import { getSiteOrigin } from "@/lib/seo/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +26,14 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const data = await getProductBySlug(slug);
-  if (!data) return { title: "Product Not Found" };
-  return {
-    title: data.product.metaTitle ?? data.product.name,
-    description: data.product.metaDescription ?? data.product.shortDescription,
-  };
+  if (!data) return productNotFoundMetadata();
+  const imageUrls = data.images.map((i) => i.url).filter(Boolean) as string[];
+  return generateProductMetadata({
+    product: data.product,
+    category: data.category ?? null,
+    imageUrls,
+    vendorName: null,
+  });
 }
 
 export default async function ProductDetailPage({
@@ -44,16 +54,37 @@ export default async function ProductDetailPage({
     product.promotionalDiscountPct,
   );
 
+  const origin = getSiteOrigin();
+  const productUrl = `${origin}/shop/${product.slug}`;
+  const imageUrls = images.map((i) => i.url).filter(Boolean) as string[];
+  const reviews = await listApprovedReviewsForProduct(product.id, 12);
+  const productSchema = generateProductSchema(product, {
+    categoryName: category?.name ?? null,
+    imageUrls,
+    productUrl,
+    brandName: category?.name ?? null,
+  });
+  const withReviews =
+    reviews.length > 0
+      ? { ...productSchema, review: generateProductReviewNodes(reviews) }
+      : productSchema;
+  const crumbs = getProductBreadcrumbs(category ?? null, product);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <JsonLd data={withReviews as unknown as Record<string, unknown>} />
       <ProductViewBeacon productId={product.id} />
-      <nav className="mb-6 text-sm text-text-secondary">
-        <Link href="/">Home</Link>
-        {" / "}
-        <Link href={`/shop?category=${category?.slug}`}>{category?.name}</Link>
-        {" / "}
-        <span className="text-text-primary">{product.name}</span>
-      </nav>
+      <Breadcrumbs
+        className="mb-6"
+        items={[
+          { label: "Home", href: "/" },
+          ...(category
+            ? [{ label: category.name, href: `/categories/${category.slug}` }]
+            : []),
+          { label: product.name },
+        ]}
+        jsonLdItems={crumbs}
+      />
 
       <div className="grid gap-10 lg:grid-cols-2">
         <div className="relative aspect-square overflow-hidden rounded-[length:var(--radius-card)] border border-border bg-surface-subtle shadow-[var(--shadow-soft)]">
@@ -61,9 +92,7 @@ export default async function ProductDetailPage({
             <Image
               src={primaryImage.url}
               alt={primaryImage.altText ?? product.name}
-              fill
-              className="object-cover"
-              priority
+              quality={85}
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
           ) : (
@@ -138,6 +167,8 @@ export default async function ProductDetailPage({
           <p className="mt-6 leading-relaxed text-text-secondary">{product.shortDescription}</p>
 
           <AddToCartSection productId={product.id} stockQty={product.stockQty} price={product.price} />
+
+          <AffiliateShareButton productSlug={product.slug} productName={product.name} unitPriceInr={price} />
 
           <SubscribeSection
             productId={product.id}

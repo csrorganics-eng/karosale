@@ -12,6 +12,7 @@ export async function GET() {
       env: {
         hasDatabase: !!process.env.DATABASE_URL,
         hasRazorpay: !!process.env.RAZORPAY_KEY_ID,
+        hasRazorpayWebhookSecret: !!process.env.RAZORPAY_WEBHOOK_SECRET?.trim(),
         hasResend: !!process.env.RESEND_API_KEY,
         isPreview: process.env.NEXT_PUBLIC_IS_PREVIEW === "true",
       },

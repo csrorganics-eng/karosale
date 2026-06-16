@@ -173,6 +173,10 @@ export default function CheckoutPage() {
           notes: deliveryNotes.trim() || undefined,
           isGift,
           giftMessage: isGift ? giftMessage.trim() || undefined : undefined,
+          affiliateUsername:
+            typeof window !== "undefined"
+              ? sessionStorage.getItem("affiliate_username_override") ?? undefined
+              : undefined,
         }),
       });
       const json = await res.json();
@@ -208,19 +212,27 @@ export default function CheckoutPage() {
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
-          await runWithLoading("Confirming payment…", async () => {
-            await fetch("/api/orders/verify-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                orderId: order.id,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              }),
+          try {
+            await runWithLoading("Confirming payment…", async () => {
+              const verifyRes = await fetch("/api/orders/verify-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  orderId: order.id,
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                }),
+              });
+              const verifyJson = (await verifyRes.json()) as { success?: boolean; error?: string };
+              if (!verifyRes.ok || !verifyJson.success) {
+                throw new Error(verifyJson.error ?? `Payment confirmation failed (${verifyRes.status})`);
+              }
             });
-          });
-          router.push(`/checkout/success?order=${order.orderNumber}`);
+            router.push(`/checkout/success?order=${order.orderNumber}`);
+          } catch (e) {
+            setCheckoutError(e instanceof Error ? e.message : "Payment could not be confirmed. You can retry from checkout or contact support with your order number.");
+          }
         },
       });
       rzp.open();

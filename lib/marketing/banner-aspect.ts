@@ -40,6 +40,41 @@ export function bannerPreviewAspectClass(aspect: MarketingBannerAspect): string 
   }
 }
 
+const LANDSCAPE_MAX_FRAME_REM = 22;
+
+/**
+ * Frame for the published homepage hero (and admin “matches storefront” preview).
+ * Caps height indirectly via max-width so aspect-ratio is never violated (avoids
+ * `max-h` + `aspect-*` fighting and cropping like a 21:9 box on 16:9 art).
+ */
+export function homepageBannerStorefrontImageShellClass(aspect: MarketingBannerAspect): string {
+  const cap = `${LANDSCAPE_MAX_FRAME_REM}rem`;
+  switch (aspect) {
+    case "16:9":
+      return [
+        "relative isolate w-full overflow-hidden bg-muted",
+        "aspect-video",
+        `max-w-[min(100%,calc(${cap}*16/9))]`,
+        "mx-auto",
+      ].join(" ");
+    case "1:1":
+      return [
+        "relative isolate w-full overflow-hidden bg-muted",
+        "aspect-square",
+        `max-w-[min(100%,${cap})]`,
+        "mx-auto",
+      ].join(" ");
+    case "9:16":
+      return [
+        "relative isolate mx-auto overflow-hidden bg-muted",
+        "aspect-[9/16]",
+        "h-[min(78vh,40rem)] w-auto",
+      ].join(" ");
+    default:
+      return homepageBannerStorefrontImageShellClass("16:9");
+  }
+}
+
 export function bannerAspectInstructionForAi(aspect: MarketingBannerAspect): string {
   switch (aspect) {
     case "16:9":

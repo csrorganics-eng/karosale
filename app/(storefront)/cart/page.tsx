@@ -9,6 +9,7 @@ import { WaitingSpinner } from "@/components/ui/waiting-overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatINR } from "@/lib/utils";
+import { AffiliateCodeInput } from "@/components/affiliate/AffiliateCodeInput";
 
 interface CartItem {
   id: string;
@@ -180,6 +181,9 @@ export default function CartPage() {
             <Button variant="outline" onClick={applyCoupon}>
               Apply
             </Button>
+          </div>
+          <div className="mt-4">
+            <AffiliateCodeInput />
           </div>
           <Button className="mt-6 w-full" size="lg" asChild>
             <Link href="/checkout">Proceed to Checkout</Link>

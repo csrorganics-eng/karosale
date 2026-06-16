@@ -1,12 +1,33 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getBundleBySlug } from "@/lib/db/queries/bundles";
 import { BackToHome } from "@/components/storefront/BackToHome";
 import { formatINR } from "@/lib/utils";
 import { AddBundleToCartButton } from "./AddBundleToCartButton";
+import { buildCanonicalUrl } from "@/lib/seo/metadata";
+import { truncateDescription } from "@/lib/seo/utils";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const data = await getBundleBySlug(slug);
+  if (!data) return { title: "Bundle not found", robots: { index: false, follow: true } };
+  const { bundle } = data;
+  const description = truncateDescription(bundle.description || bundle.name, 160);
+  return {
+    title: `${bundle.name} | CSR Organics`,
+    description,
+    alternates: { canonical: buildCanonicalUrl(`/bundles/${slug}`) },
+    openGraph: { title: bundle.name, description },
+  };
+}
 
 export default async function BundleDetailPage({
   params,

@@ -81,6 +81,11 @@ export const orderStatusChangedFunction = inngest.createFunction(
     });
 
     if (status === "delivered") {
+      await step.run("affiliate-order-complete", async () => {
+        const { triggerAffiliateCommissionFromOrderLifecycle } = await import("@/lib/affiliate/engine");
+        await triggerAffiliateCommissionFromOrderLifecycle({ orderId, event: "order_delivered" });
+      });
+
       await step.run("award-karma", async () => {
         const { order, user } = orderData;
         if (!order || !user) return;

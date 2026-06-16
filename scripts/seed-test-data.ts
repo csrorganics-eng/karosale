@@ -1,6 +1,7 @@
 /**
  * Idempotent seed for local dev and Vercel preview.
- * Run: npm run seed (loads `.env.local` / `.env` automatically; requires DATABASE_URL)
+ * Run: npm run seed (loads `.env.local` / `.env` automatically; requires DATABASE_URL).
+ * Also seeds affiliate QA users + clicks/order/commission/payout via `seed-affiliate-qa.ts`.
  */
 import "./load-env-files";
 import bcrypt from "bcryptjs";
@@ -55,6 +56,7 @@ async function main() {
   const passwordHash = await bcrypt.hash("QATester@123", 10);
   const adminHash = await bcrypt.hash("AdminQA@123", 10);
   const packerHash = await bcrypt.hash("PackerQA@123", 10);
+  const affiliateHash = await bcrypt.hash("AffiliateQA@123", 10);
 
   /** Keep QA logins working after email domain changes — match referral code or legacy/new email. */
   async function syncQaUser(opts: {
@@ -122,6 +124,26 @@ async function main() {
     role: "packer",
   });
 
+  await syncQaUser({
+    email: "affiliate.qa@csrorganics.com",
+    matchEmails: ["affiliate.qa@karosale.com", "affiliate.qa@csrorganics.com"],
+    referralCode: "AFF001",
+    passwordHash: affiliateHash,
+    name: "QA Affiliate Active",
+    phone: "9999999910",
+    role: "customer",
+  });
+
+  await syncQaUser({
+    email: "affiliate.pending@csrorganics.com",
+    matchEmails: ["affiliate.pending@karosale.com", "affiliate.pending@csrorganics.com"],
+    referralCode: "AFF002",
+    passwordHash: affiliateHash,
+    name: "QA Affiliate Pending",
+    phone: "9999999911",
+    role: "customer",
+  });
+
   async function upsertUser(data: {
     email: string;
     name: string;
@@ -178,6 +200,24 @@ async function main() {
     role: "packer",
     passwordHash: packerHash,
     referralCode: "PCK001",
+  });
+
+  const qaAffiliateActive = await upsertUser({
+    email: "affiliate.qa@csrorganics.com",
+    name: "QA Affiliate Active",
+    phone: "9999999910",
+    role: "customer",
+    passwordHash: affiliateHash,
+    referralCode: "AFF001",
+  });
+
+  const qaAffiliatePending = await upsertUser({
+    email: "affiliate.pending@csrorganics.com",
+    name: "QA Affiliate Pending",
+    phone: "9999999911",
+    role: "customer",
+    passwordHash: affiliateHash,
+    referralCode: "AFF002",
   });
 
   const categoryData = [
@@ -381,6 +421,18 @@ async function main() {
     .from(products)
     .where(eq(products.isActive, true))
     .limit(80);
+
+  if (addressId && allProducts.length >= 1) {
+    const { seedAffiliateQa } = await import("./seed-affiliate-qa");
+    await seedAffiliateQa({
+      db,
+      addressId,
+      qaBuyerUserId: qaCustomer.id,
+      affiliateActiveUserId: qaAffiliateActive.id,
+      affiliatePendingUserId: qaAffiliatePending.id,
+      products: allProducts,
+    });
+  }
 
   const DUMMY_PACKAGING_PDF =
     "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
@@ -591,6 +643,8 @@ async function main() {
   console.log("   Customer: qa.tester@csrorganics.com / QATester@123");
   console.log("   Admin:    admin.qa@csrorganics.com / AdminQA@123");
   console.log("   Packer:   packer.qa@csrorganics.com / PackerQA@123");
+  console.log("   Affiliate (active):   affiliate.qa@csrorganics.com / AffiliateQA@123  — username qaaffseed");
+  console.log("   Affiliate (pending): affiliate.pending@csrorganics.com / AffiliateQA@123 — username qaaffpend");
 }
 
 main()

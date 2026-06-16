@@ -33,15 +33,24 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.r2.dev" },
       { protocol: "https", hostname: "*.cloudflarestorage.com" },
     ],
-    formats: ["image/webp"],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86_400,
   },
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      {
+        source: "/og",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, s-maxage=86400" }],
+      },
+    ];
   },
   async redirects() {
     return [
       { source: "/products", destination: "/shop", permanent: true },
       { source: "/product/:slug", destination: "/shop/:slug", permanent: true },
+      { source: "/product/:id(\\d+)", destination: "/shop", permanent: true },
+      { source: "/shop/:category/:product", destination: "/shop/:product", permanent: true },
     ];
   },
   experimental: {

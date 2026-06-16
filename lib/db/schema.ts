@@ -1,5 +1,7 @@
 import { relations, sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
+  bigserial,
   boolean,
   date,
   decimal,
@@ -561,6 +563,11 @@ export const orders = pgTable(
     cancellationReason: text("cancellation_reason"),
     isGift: boolean("is_gift").default(false).notNull(),
     giftMessage: text("gift_message"),
+    /** Set at checkout from affiliate tracking cookie / manual code (FK applied in DB migration). */
+    affiliateId: integer("affiliate_id"),
+    affiliateDiscountAmount: decimal("affiliate_discount_amount", { precision: 10, scale: 2 })
+      .default("0")
+      .notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   },
@@ -570,6 +577,7 @@ export const orders = pgTable(
     index("orders_status_idx").on(table.status),
     index("orders_payment_status_idx").on(table.paymentStatus),
     index("orders_created_at_idx").on(table.createdAt),
+    index("orders_affiliate_id_idx").on(table.affiliateId),
   ],
 );
 
@@ -1175,6 +1183,8 @@ export const marketingCampaigns = pgTable(
 export const siteHomepageBanner = pgTable("site_homepage_banner", {
   singleton: text("singleton").primaryKey().default("default"),
   imageUrl: text("image_url"),
+  /** Matches Marketing Studio / admin aspect used when the image was generated (16:9, 9:16, 1:1). */
+  bannerAspect: text("banner_aspect").notNull().default("16:9"),
   linkHref: text("link_href"),
   headline: text("headline"),
   subheadline: text("subheadline"),
@@ -1218,6 +1228,277 @@ export const whatsappRecipientGroups = pgTable("whatsapp_recipient_groups", {
   description: text("description"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+// --- Affiliate program ---
+export const affiliateSettings = pgTable("affiliate_settings", {
+  id: serial("id").primaryKey(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  defaultCommissionType: varchar("default_commission_type", { length: 10 }).default("percent").notNull(),
+  defaultCommissionValue: decimal("default_commission_value", { precision: 10, scale: 4 })
+    .default("5")
+    .notNull(),
+  secondOrderCommissionEnabled: boolean("second_order_commission_enabled").default(false).notNull(),
+  secondOrderCommissionValue: decimal("second_order_commission_value", { precision: 10, scale: 4 })
+    .default("2")
+    .notNull(),
+  newCustomerDiscountEnabled: boolean("new_customer_discount_enabled").default(false).notNull(),
+  newCustomerDiscountType: varchar("new_customer_discount_type", { length: 10 })
+    .default("percent")
+    .notNull(),
+  newCustomerDiscountValue: decimal("new_customer_discount_value", { precision: 10, scale: 4 })
+    .default("0")
+    .notNull(),
+  newCustomerDiscountMaxUses: integer("new_customer_discount_max_uses"),
+  commissionTrigger: varchar("commission_trigger", { length: 20 }).default("order_complete").notNull(),
+  multitierEnabled: boolean("multitier_enabled").default(false).notNull(),
+  tier1CommissionValue: decimal("tier1_commission_value", { precision: 10, scale: 4 }).default("5").notNull(),
+  tier2CommissionValue: decimal("tier2_commission_value", { precision: 10, scale: 4 }).default("2").notNull(),
+  tier3CommissionValue: decimal("tier3_commission_value", { precision: 10, scale: 4 }).default("1").notNull(),
+  tier4CommissionValue: decimal("tier4_commission_value", { precision: 10, scale: 4 }).default("0.5").notNull(),
+  tierCommissionType: varchar("tier_commission_type", { length: 10 }).default("percent").notNull(),
+  registrationCommissionEnabled: boolean("registration_commission_enabled").default(false).notNull(),
+  registrationCommissionValue: decimal("registration_commission_value", { precision: 10, scale: 4 })
+    .default("0")
+    .notNull(),
+  allowGrabReferrer: boolean("allow_grab_referrer").default(false).notNull(),
+  cookieDurationDays: integer("cookie_duration_days").default(7).notNull(),
+  minPayoutAmount: decimal("min_payout_amount", { precision: 10, scale: 2 }).default("500").notNull(),
+  payoutMethod: varchar("payout_method", { length: 20 }).default("razorpay").notNull(),
+  autoPayoutEnabled: boolean("auto_payout_enabled").default(false).notNull(),
+  autoPayoutThreshold: decimal("auto_payout_threshold", { precision: 10, scale: 2 }).default("1000").notNull(),
+  popupEnabled: boolean("popup_enabled").default(true).notNull(),
+  popupBgColor: varchar("popup_bg_color", { length: 7 }).default("#2D6A4F").notNull(),
+  popupTextColor: varchar("popup_text_color", { length: 7 }).default("#FFFFFF").notNull(),
+  popupShowSocialShare: boolean("popup_show_social_share").default(true).notNull(),
+  popupSocialNetworks: text("popup_social_networks")
+    .array()
+    .notNull()
+    .default(sql`ARRAY['whatsapp','facebook','twitter','instagram']::text[]`),
+  excludedProductIds: uuid("excluded_product_ids")
+    .array()
+    .notNull()
+    .default(sql`ARRAY[]::uuid[]`),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const affiliates = pgTable(
+  "affiliates",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    username: varchar("username", { length: 50 }).notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    referredByAffiliateId: integer("referred_by_affiliate_id").references(
+      (): AnyPgColumn => affiliates.id,
+      { onDelete: "set null" },
+    ),
+    tierLevel: integer("tier_level").default(1).notNull(),
+    totalEarned: decimal("total_earned", { precision: 12, scale: 2 }).default("0").notNull(),
+    totalPaid: decimal("total_paid", { precision: 12, scale: 2 }).default("0").notNull(),
+    walletBalance: decimal("wallet_balance", { precision: 12, scale: 2 }).default("0").notNull(),
+    razorpayContactId: varchar("razorpay_contact_id", { length: 50 }),
+    razorpayFundAccountId: varchar("razorpay_fund_account_id", { length: 50 }),
+    bankAccountNumber: varchar("bank_account_number", { length: 30 }),
+    bankIfsc: varchar("bank_ifsc", { length: 15 }),
+    bankAccountName: varchar("bank_account_name", { length: 100 }),
+    upiId: varchar("upi_id", { length: 100 }),
+    emailNotificationsEnabled: boolean("email_notifications_enabled").default(true).notNull(),
+    approvedAt: timestamp("approved_at", { mode: "date" }),
+    approvedByAdminId: uuid("approved_by_admin_id"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("affiliates_username_idx").on(table.username),
+    index("affiliates_user_id_idx").on(table.userId),
+    index("affiliates_status_idx").on(table.status),
+    index("affiliates_referred_by_idx").on(table.referredByAffiliateId),
+  ],
+);
+
+export const affiliateTrackingLinks = pgTable(
+  "affiliate_tracking_links",
+  {
+    id: serial("id").primaryKey(),
+    affiliateId: integer("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }),
+    customSlug: varchar("custom_slug", { length: 100 }),
+    fullUrl: text("full_url").notNull(),
+    clickCount: integer("click_count").default(0).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [index("affiliate_tracking_links_affiliate_id_idx").on(table.affiliateId)],
+);
+
+export const affiliateClicks = pgTable(
+  "affiliate_clicks",
+  {
+    id: bigserial("id", { mode: "bigint" }).primaryKey(),
+    affiliateId: integer("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    ipAddress: varchar("ip_address", { length: 45 }),
+    userAgent: text("user_agent"),
+    referrer: text("referrer"),
+    visitorId: varchar("visitor_id", { length: 64 }),
+    converted: boolean("converted").default(false).notNull(),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("affiliate_clicks_affiliate_id_idx").on(table.affiliateId),
+    index("affiliate_clicks_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const affiliateReferrals = pgTable(
+  "affiliate_referrals",
+  {
+    id: serial("id").primaryKey(),
+    affiliateId: integer("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    referredUserId: uuid("referred_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    referralType: varchar("referral_type", { length: 20 }).default("purchase").notNull(),
+    discountApplied: decimal("discount_applied", { precision: 10, scale: 2 }).default("0").notNull(),
+    registrationCommissionPaid: boolean("registration_commission_paid").default(false).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("affiliate_referrals_referred_user_id_idx").on(table.referredUserId),
+    index("affiliate_referrals_affiliate_id_idx").on(table.affiliateId),
+  ],
+);
+
+export const affiliatePayouts = pgTable(
+  "affiliate_payouts",
+  {
+    id: serial("id").primaryKey(),
+    affiliateId: integer("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    requestedAmount: decimal("requested_amount", { precision: 12, scale: 2 }).notNull(),
+    approvedAmount: decimal("approved_amount", { precision: 12, scale: 2 }),
+    status: varchar("status", { length: 20 }).default("requested").notNull(),
+    payoutMethod: varchar("payout_method", { length: 20 }).default("razorpay").notNull(),
+    bankAccountNumber: varchar("bank_account_number", { length: 30 }),
+    bankIfsc: varchar("bank_ifsc", { length: 15 }),
+    upiId: varchar("upi_id", { length: 100 }),
+    razorpayPayoutId: varchar("razorpay_payout_id", { length: 50 }),
+    razorpayPayoutStatus: varchar("razorpay_payout_status", { length: 30 }),
+    razorpayReferenceId: varchar("razorpay_reference_id", { length: 100 }),
+    razorpayUtr: varchar("razorpay_utr", { length: 50 }),
+    reviewedByAdminId: uuid("reviewed_by_admin_id"),
+    adminNotes: text("admin_notes"),
+    rejectionReason: text("rejection_reason"),
+    requestedAt: timestamp("requested_at", { mode: "date" }).defaultNow().notNull(),
+    approvedAt: timestamp("approved_at", { mode: "date" }),
+    processedAt: timestamp("processed_at", { mode: "date" }),
+    paidAt: timestamp("paid_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("affiliate_payouts_affiliate_id_idx").on(table.affiliateId),
+    index("affiliate_payouts_status_idx").on(table.status),
+  ],
+);
+
+export const affiliateCommissions = pgTable(
+  "affiliate_commissions",
+  {
+    id: serial("id").primaryKey(),
+    affiliateId: integer("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    referredUserId: uuid("referred_user_id").references(() => users.id, { onDelete: "set null" }),
+    tierLevel: integer("tier_level").default(1).notNull(),
+    commissionType: varchar("commission_type", { length: 10 }).default("percent").notNull(),
+    commissionRate: decimal("commission_rate", { precision: 10, scale: 4 }).notNull(),
+    orderSubtotal: decimal("order_subtotal", { precision: 12, scale: 2 }).notNull(),
+    commissionAmount: decimal("commission_amount", { precision: 12, scale: 2 }).notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    payoutId: integer("payout_id").references(() => affiliatePayouts.id, { onDelete: "set null" }),
+    cancelledReason: text("cancelled_reason"),
+    cancelledByAdmin: uuid("cancelled_by_admin"),
+    cancelledAt: timestamp("cancelled_at", { mode: "date" }),
+    triggerEvent: varchar("trigger_event", { length: 30 }).default("order_complete").notNull(),
+    approvedAt: timestamp("approved_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("affiliate_commissions_order_affiliate_tier_idx").on(
+      table.orderId,
+      table.affiliateId,
+      table.tierLevel,
+    ),
+    index("affiliate_commissions_affiliate_id_idx").on(table.affiliateId),
+    index("affiliate_commissions_order_id_idx").on(table.orderId),
+    index("affiliate_commissions_status_idx").on(table.status),
+  ],
+);
+
+export const affiliateProductOverrides = pgTable(
+  "affiliate_product_overrides",
+  {
+    id: serial("id").primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    isExcluded: boolean("is_excluded").default(false).notNull(),
+    commissionType: varchar("commission_type", { length: 10 }),
+    commissionValue: decimal("commission_value", { precision: 10, scale: 4 }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("affiliate_product_overrides_product_id_idx").on(table.productId)],
+);
+
+export const affiliateProgramTiers = pgTable("affiliate_program_tiers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 50 }).notNull(),
+  minSalesAmount: decimal("min_sales_amount", { precision: 12, scale: 2 }).default("0").notNull(),
+  commissionBonus: decimal("commission_bonus", { precision: 10, scale: 4 }).default("0").notNull(),
+  badgeColor: varchar("badge_color", { length: 7 }).default("#CD7F32").notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const affiliateMonthlySummary = pgTable(
+  "affiliate_monthly_summary",
+  {
+    id: serial("id").primaryKey(),
+    affiliateId: integer("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    totalClicks: integer("total_clicks").default(0).notNull(),
+    totalOrders: integer("total_orders").default(0).notNull(),
+    totalSales: decimal("total_sales", { precision: 12, scale: 2 }).default("0").notNull(),
+    totalCommission: decimal("total_commission", { precision: 12, scale: 2 }).default("0").notNull(),
+    totalPaid: decimal("total_paid", { precision: 12, scale: 2 }).default("0").notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("affiliate_monthly_summary_affiliate_period_idx").on(
+      table.affiliateId,
+      table.year,
+      table.month,
+    ),
+  ],
+);
 
 // --- Relations ---
 export const usersRelations = relations(users, ({ one, many }) => ({

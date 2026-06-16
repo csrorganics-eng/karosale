@@ -67,6 +67,11 @@ export async function PATCH(
       .set({ status: parsed.data.status, updatedAt: new Date() })
       .where(eq(orders.id, id));
 
+    if (parsed.data.status === "refunded") {
+      const { reverseCommissionsForRefund } = await import("@/lib/affiliate/fraud");
+      await reverseCommissionsForRefund(id).catch((e) => console.error("[affiliate] refund reverse", e));
+    }
+
     await inngest.send({
       name: INNGEST_EVENTS.ORDER_STATUS_CHANGED,
       data: {
