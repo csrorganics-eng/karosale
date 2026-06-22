@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
 import { PostHogProvider } from "@/components/analytics/PostHogProvider";
 import { LoadingOverlayProvider } from "@/components/providers/loading-overlay-provider";
+import { CapacitorShell } from "@/components/mobile/CapacitorShell";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -18,6 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
+      <CapacitorShell />
       <PostHogProvider>
         <QueryClientProvider client={queryClient}>
           <LoadingOverlayProvider>{children}</LoadingOverlayProvider>

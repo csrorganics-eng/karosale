@@ -37,6 +37,48 @@ declare global {
   }
 }
 
+const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
+
+/** Wait for next/script or inject checkout.js so Place order works even on fast clicks / lazy load. */
+async function ensureRazorpayCheckoutReady(maxWaitMs = 12000): Promise<void> {
+  if (typeof window === "undefined") return;
+  const deadline = Date.now() + maxWaitMs;
+  while (!window.Razorpay && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 40));
+  }
+  if (window.Razorpay) return;
+
+  await new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${RAZORPAY_SCRIPT}"]`);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Razorpay script failed to load")), {
+        once: true,
+      });
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = RAZORPAY_SCRIPT;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () =>
+      reject(
+        new Error(
+          "Could not load Razorpay checkout. Check your connection, disable ad blockers for this site, or try again.",
+        ),
+      );
+    document.body.appendChild(s);
+  });
+
+  const until = Date.now() + 8000;
+  while (!window.Razorpay && Date.now() < until) {
+    await new Promise((r) => setTimeout(r, 40));
+  }
+  if (!window.Razorpay) {
+    throw new Error("Razorpay checkout did not become available. Refresh the page and try again.");
+  }
+}
+
 function formatZodDetails(details: unknown): string | null {
   if (!details || typeof details !== "object") return null;
   const d = details as { fieldErrors?: Record<string, string[]> };
@@ -234,9 +276,8 @@ export default function CheckoutPage() {
         return;
       }
 
-      emitCartUpdated();
-
       if (paymentMethod === "cod") {
+        emitCartUpdated();
         router.push(`/checkout/success?order=${json.data.order.orderNumber}`);
         return;
       }
@@ -247,15 +288,23 @@ export default function CheckoutPage() {
         order: { orderNumber: string; id: string };
       };
       const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-      if (!key || !window.Razorpay) {
+      if (!key) {
         setCheckoutError(
-          "Razorpay is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID for your environment.",
+          "Razorpay is not configured. Set NEXT_PUBLIC_RAZORPAY_KEY_ID to the same key type (test/live) as RAZORPAY_KEY_ID on the server.",
         );
         return;
       }
 
+      await ensureRazorpayCheckoutReady();
+
       const RazorpayCtor = window.Razorpay;
+      if (!RazorpayCtor) {
+        setCheckoutError("Razorpay checkout is unavailable. Refresh the page or try again in a moment.");
+        return;
+      }
       stopGlobalLoading();
+
+      const userEmail = session?.user?.email?.trim() || undefined;
 
       await new Promise<void>((resolve) => {
         let settled = false;
@@ -272,8 +321,27 @@ export default function CheckoutPage() {
           name: BRAND_NAME,
           description: `Order ${order.orderNumber}`,
           order_id: razorpayOrderId,
+          prefill: userEmail ? { email: userEmail } : undefined,
+          theme: { color: "#166534" },
           modal: {
             ondismiss: () => {
+              setCheckoutError(
+                "Payment was not completed. Your bag is unchanged — try Pay online again or choose Cash on Delivery.",
+              );
+              void (async () => {
+                try {
+                  const cartRes = await fetch("/api/cart", { cache: "no-store", credentials: "include" });
+                  const cartJson = (await cartRes.json()) as {
+                    success?: boolean;
+                    data?: CheckoutCartPayload;
+                  };
+                  if (cartJson.success) {
+                    setCart(cartJson.data ?? { cart: null, items: [] });
+                  }
+                } catch {
+                  /* ignore */
+                }
+              })();
               finish();
             },
           },
@@ -310,6 +378,18 @@ export default function CheckoutPage() {
                   ? e.message
                   : "Payment could not be confirmed. You can retry from checkout or contact support with your order number.",
               );
+              try {
+                const cartRes = await fetch("/api/cart", { cache: "no-store", credentials: "include" });
+                const cartJson = (await cartRes.json()) as {
+                  success?: boolean;
+                  data?: CheckoutCartPayload;
+                };
+                if (cartJson.success) {
+                  setCart(cartJson.data ?? { cart: null, items: [] });
+                }
+              } catch {
+                /* ignore */
+              }
             } finally {
               finish();
             }
@@ -409,7 +489,7 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <Script src={RAZORPAY_SCRIPT} strategy="afterInteractive" />
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="font-display text-3xl font-bold">Checkout</h1>
 
@@ -591,7 +671,9 @@ export default function CheckoutPage() {
                   onChange={() => setPaymentMethod("razorpay")}
                   disabled={!canPlaceOrder}
                 />
-                Pay online (Razorpay)
+                <span>
+                  Pay online (Razorpay) — UPI, cards, net banking &amp; wallets in the secure window
+                </span>
               </label>
               <label className="flex items-center gap-2">
                 <input

@@ -7,6 +7,7 @@ import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { jsonOk, jsonError } from "@/lib/api-response";
 import { requireAuth } from "@/lib/auth";
 import { applyKarmaRedemptionForPaidOrder } from "@/lib/loyalty";
+import { finalizeDeferredCheckoutAfterCapture } from "@/lib/orders/finalize-captured-payment";
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +34,15 @@ export async function POST(request: Request) {
 
     if (!order) return jsonError("Order not found", 404);
 
+    if (
+      order.razorpayOrderId &&
+      order.razorpayOrderId !== razorpayOrderId
+    ) {
+      return jsonError("Payment does not match this order", 400);
+    }
+
     if (order.paymentStatus === "captured") {
+      await finalizeDeferredCheckoutAfterCapture(orderId);
       return jsonOk({ success: true, orderId, duplicate: true });
     }
 
@@ -49,6 +58,8 @@ export async function POST(request: Request) {
       .where(eq(orders.id, orderId));
 
     await applyKarmaRedemptionForPaidOrder(orderId);
+
+    await finalizeDeferredCheckoutAfterCapture(orderId);
 
     await inngest.send({
       name: INNGEST_EVENTS.ORDER_PLACED,

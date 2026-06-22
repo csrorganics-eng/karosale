@@ -15,7 +15,15 @@
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed-test-data.ts",
     "smoke": "tsx scripts/smoke-test.ts",
-    "inngest:dev": "npx inngest-cli@latest dev"
+    "inngest:dev": "npx inngest-cli@latest dev",
+    "mobile:sync": "npx cap sync",
+    "mobile:open:android": "npx cap open android",
+    "mobile:open:ios": "npx cap open ios",
+    "mobile:copy": "npx cap copy",
+    "native:start": "npm run start --prefix apps/mobile",
+    "native:android": "npm run android --prefix apps/mobile",
+    "native:ios": "npm run ios --prefix apps/mobile",
+    "native:web": "npm run web --prefix apps/mobile"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.4",
@@ -44,6 +52,12 @@
     "@react-pdf/renderer": "^4.2.0",
     "@tanstack/react-query": "^5.64.2",
     "ai": "^4.1.16",
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2",
     "bcryptjs": "^2.4.3",
     "bwip-js": "^4.5.1",
     "class-variance-authority": "^0.7.1",
@@ -73,6 +87,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
     "@eslint/eslintrc": "^3.2.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/bcryptjs": "^2.4.6",

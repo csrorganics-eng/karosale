@@ -1,0 +1,170 @@
+' =============================================================================
+' Karosale / CSR Organics — C4 model: AI shop chatbot
+' Render: VS Code "PlantUML" extension, or: plantuml docs/c4-ai-chatbot.puml
+' Requires: PlantUML + Graphviz; C4 includes load from GitHub (or vendor locally).
+' =============================================================================
+
+@startuml c4_l1_ai_chatbot_context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+LAYOUT_WITH_LEGEND()
+
+title C4 Level 1 — System context (AI shop chatbot)
+
+Person(shopper, "Shopper", "Browses the storefront; may be signed in or guest.")
+
+System_Boundary(karosale, "Karosale e-commerce platform") {
+  System(shop, "Storefront + shop assistant", "Next.js app with floating chat; answers product and order questions using tools + external LLMs.")
+}
+
+System_Ext(llm_groq, "Groq", "OpenAI-compatible chat completions (primary).")
+System_Ext(llm_cerebras, "Cerebras", "OpenAI-compatible chat completions (fallback).")
+System_Ext(llm_gemini, "Google Gemini", "OpenAI-compatible endpoint (last resort in router).")
+System_Ext(resend, "Resend", "Transactional email (human escalation).")
+SystemDb_Ext(neon, "Neon PostgreSQL", "Chat sessions, messages, escalations; catalog and orders.")
+
+Rel(shopper, shop, "Asks questions, reads replies", "HTTPS")
+Rel(shop, neon, "Reads/writes sessions, catalog, orders", "SQL (TLS)")
+Rel(shop, llm_groq, "Chat completions + tool calls", "HTTPS")
+Rel(shop, llm_cerebras, "Chat completions + tool calls", "HTTPS")
+Rel(shop, llm_gemini, "Chat completions + tool calls", "HTTPS")
+Rel(shop, resend, "Escalation notifications", "HTTPS")
+
+SHOW_LEGEND()
+@enduml
+
+
+@startuml c4_l2_ai_chatbot_containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_WITH_LEGEND()
+
+title C4 Level 2 — Containers (AI shop chatbot)
+
+Person(shopper, "Shopper", "Uses browser or mobile web.")
+
+System_Boundary(karosale, "Karosale platform") {
+  Container(browser, "Web browser", "React / Next.js client components.", "Web")
+  Container(spa, "Storefront Next.js app", "SSR + client islands; hosts ShopChatWidget.", "TypeScript / Next.js 15")
+  Container(api, "API routes (App Router)", "POST /api/chat, GET /api/chat/status; auth, rate limit, orchestration.", "TypeScript / Node")
+  Container(chat_core, "Shop chat core", "runShopChatAssistant, tool dispatch, system prompt + companion knowledge.", "TypeScript")
+  Container(ai_router, "AI router", "Groq → Cerebras → Gemini OpenAI-compat; tool-aware completions.", "TypeScript / openai SDK")
+  ContainerDb(db, "PostgreSQL (Neon)", "shop_chat_sessions, shop_chat_messages, shop_chat_escalations; products, orders.", "Drizzle ORM")
+}
+
+System_Ext(groq, "Groq API", "LLM")
+System_Ext(cerebras, "Cerebras API", "LLM")
+System_Ext(gemini, "Gemini OpenAI-compat", "LLM")
+System_Ext(resend, "Resend API", "Email")
+
+Rel(shopper, browser, "Uses", "HTTPS")
+Rel(browser, spa, "Loads", "HTTPS")
+Rel(browser, api, "POST /api/chat, GET /api/chat/status", "JSON / HTTPS")
+Rel(api, chat_core, "Invokes", "in-process")
+Rel(chat_core, ai_router, "routerChatCompletion + tools", "in-process")
+Rel(chat_core, db, "Sessions, messages, tools read catalog/orders", "SQL")
+Rel(ai_router, groq, "chat.completions", "HTTPS")
+Rel(ai_router, cerebras, "chat.completions", "HTTPS")
+Rel(ai_router, gemini, "chat.completions", "HTTPS")
+Rel(chat_core, resend, "sendEmail on escalate_to_human", "HTTPS")
+
+Rel(spa, api, "Optional: status probe", "HTTPS")
+
+SHOW_LEGEND()
+@enduml
+
+
+@startuml c4_l3_ai_chatbot_components
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_WITH_LEGEND()
+
+title C4 Level 3 — Components (API + shop chat core boundary)
+
+Container_Boundary(api, "API layer") {
+  Component(chat_route, "POST /api/chat", "Validates body; rate limit by clientKey; auth(); ensure session; append user msg; run assistant; append assistant reply; jsonOk.", "Next.js Route Handler")
+  Component(chat_status, "GET /api/chat/status", "Exposes isAiRouterConfigured() for widget enable/disable.", "Next.js Route Handler")
+}
+
+Container_Boundary(chat_core, "Shop chat core") {
+  Component(run_assistant, "runShopChatAssistant", "Builds system prompt + knowledge; tool loop (max rounds); calls router; merges tool results into messages.", "lib/chat/run-shop-chat.ts")
+  Component(companion_knowledge, "companionKnowledgeBlock", "Static companion policy / tone / domain hints for the model.", "lib/chat/shop-chat-companion-knowledge.ts")
+  Component(tool_runner, "runTool", "Dispatches: search_catalog, get_product_summary, order tools, escalate_to_human.", "run-shop-chat.ts")
+}
+
+Container_Boundary(data, "Data access") {
+  Component(shop_chat_q, "shop-chat queries", "ensureShopChatSession, append/list messages, insertShopChatEscalation.", "lib/db/queries/shop-chat.ts")
+  Component(products_q, "products queries", "searchProducts (skipSemanticRerank), getProductBySlug for tools.", "lib/db/queries/products.ts")
+  Component(orders_drizzle, "orders / order_items", "Inline Drizzle for signed-in order history and detail.", "lib/db + schema")
+}
+
+Container_Boundary(ai, "AI router") {
+  Component(router, "routerChatCompletion", "buildProviderList; try each provider; tool_calls mapping; 429/503 failover.", "lib/ai-router.ts")
+  Component(trim_ctx, "trimMessagesForCerebras", "Context window safety for Cerebras.", "lib/ai-router.ts")
+}
+
+Container_Ext(resend_lib, "sendEmail", "Resend client wrapper for escalation emails.", "lib/resend")
+
+Rel(chat_route, shop_chat_q, "Session + message persistence")
+Rel(chat_route, run_assistant, "After user message saved")
+Rel(run_assistant, companion_knowledge, "System prompt fragment")
+Rel(run_assistant, router, "Multi-turn chat + shopToolsOpenAI")
+Rel(run_assistant, tool_runner, "On model tool_calls")
+Rel(tool_runner, products_q, "search_catalog, get_product_summary")
+Rel(tool_runner, orders_drizzle, "purchase history, order detail, recent orders")
+Rel(tool_runner, shop_chat_q, "insertShopChatEscalation")
+Rel(tool_runner, resend_lib, "escalate_to_human → email team")
+Rel(router, trim_ctx, "When provider is cerebras")
+
+SHOW_LEGEND()
+@enduml
+
+
+@startuml c4_l4_ai_chatbot_code
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_WITH_LEGEND()
+
+title C4 Level 4 — Code / file map (primary modules)
+
+Container_Boundary(client, "Browser — client") {
+  Component(widget, "ShopChatWidget.tsx", "Floating UI; getOrCreateClientKey(); POST /api/chat, GET /api/chat/status.", "components/storefront/")
+}
+
+Container_Boundary(routes, "Next.js — route handlers") {
+  Component(post_chat, "app/api/chat/route.ts", "Auth, rate limit, session + messages, runShopChatAssistant, persist reply.", "App Router")
+  Component(get_status, "app/api/chat/status/route.ts", "isAiRouterConfigured() for widget gating.", "App Router")
+}
+
+Container_Boundary(assistant, "lib/chat") {
+  Component(run_shop, "run-shop-chat.ts", "runShopChatAssistant; shopToolsOpenAI; runTool switch; tool rounds loop.", "TypeScript")
+  Component(knowledge, "shop-chat-companion-knowledge.ts", "companionKnowledgeBlock() for system prompt.", "TypeScript")
+}
+
+Container_Boundary(router_pkg, "lib") {
+  Component(ai_router, "ai-router.ts", "routerChatCompletion, buildProviderList, trimMessagesForCerebras, OpenAI SDK.", "TypeScript")
+  Component(resend, "resend.ts", "sendEmail for escalations.", "TypeScript")
+}
+
+Container_Boundary(db_layer, "lib/db") {
+  Component(q_chat, "queries/shop-chat.ts", "Sessions, messages, escalations.", "Drizzle")
+  Component(q_products, "queries/products.ts", "searchProducts, getProductBySlug.", "Drizzle")
+  Component(schema, "schema.ts", "shopChatSessions, shopChatMessages, shopChatEscalations, orders, orderItems.", "Drizzle")
+}
+
+Rel(widget, post_chat, "HTTPS JSON")
+Rel(widget, get_status, "HTTPS JSON")
+Rel(post_chat, run_shop, "invoke")
+Rel(post_chat, q_chat, "CRUD")
+Rel(run_shop, knowledge, "system text")
+Rel(run_shop, ai_router, "routerChatCompletion + tools")
+Rel(run_shop, q_chat, "tool: escalation row")
+Rel(run_shop, q_products, "tools: catalog")
+Rel(run_shop, schema, "tools: orders via db + schema")
+Rel(run_shop, resend, "tool: escalate_to_human")
+Rel(get_status, ai_router, "import isAiRouterConfigured")
+
+note right of run_shop
+  Tools: search_catalog, get_product_summary,
+  get_my_purchase_history, get_my_order_detail,
+  list_my_recent_orders, escalate_to_human
+end note
+
+SHOW_LEGEND()
+@enduml

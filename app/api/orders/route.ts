@@ -18,7 +18,7 @@ import {
   getTierForPoints,
   tierGrantsFreeShipping,
 } from "@/lib/loyalty";
-import { createRazorpayOrder } from "@/lib/razorpay";
+import { createRazorpayOrder, getRazorpay } from "@/lib/razorpay";
 import { emitCodCheckoutEvents } from "@/lib/inngest/emit-order-events";
 import { jsonOk, jsonError } from "@/lib/api-response";
 import { markLatestClickConverted, resolveCheckoutAffiliate } from "@/lib/affiliate/engine";
@@ -151,6 +151,8 @@ async function persistOrder(
     items: Awaited<ReturnType<typeof getCartWithItems>>["items"];
     cartId: string;
     deductKarmaNow: boolean;
+    /** When true, cart lines and coupon usage are applied only after online payment capture. */
+    deferCartClearAndCouponUntilCapture: boolean;
     affiliateId?: number | null;
     affiliateDiscount?: number;
   },
@@ -175,6 +177,7 @@ async function persistOrder(
     items,
     cartId,
     deductKarmaNow,
+    deferCartClearAndCouponUntilCapture,
     affiliateId,
     affiliateDiscount,
   } = params;
@@ -240,7 +243,7 @@ async function persistOrder(
       .onConflictDoNothing();
   }
 
-  if (appliedCouponCode) {
+  if (!deferCartClearAndCouponUntilCapture && appliedCouponCode) {
     const [coupon] = await tx
       .select()
       .from(coupons)
@@ -289,15 +292,17 @@ async function persistOrder(
     });
   }
 
-  await tx.delete(cartItems).where(eq(cartItems.cartId, cartId));
-  await tx
-    .update(carts)
-    .set({
-      couponCode: null,
-      couponDiscount: "0",
-      updatedAt: new Date(),
-    })
-    .where(eq(carts.id, cartId));
+  if (!deferCartClearAndCouponUntilCapture) {
+    await tx.delete(cartItems).where(eq(cartItems.cartId, cartId));
+    await tx
+      .update(carts)
+      .set({
+        couponCode: null,
+        couponDiscount: "0",
+        updatedAt: new Date(),
+      })
+      .where(eq(carts.id, cartId));
+  }
 
   return created;
 }
@@ -403,6 +408,18 @@ export async function POST(request: Request) {
 
     const orderNumber = await generateOrderNumber();
 
+    const deferCartClearAndCouponUntilCapture = paymentMethod !== "cod";
+    if (deferCartClearAndCouponUntilCapture) {
+      try {
+        getRazorpay();
+      } catch {
+        return jsonError(
+          "Online payments are not configured (missing RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET on the server). Use Cash on Delivery or contact support.",
+          503,
+        );
+      }
+    }
+
     const order = await db.transaction(async (tx) =>
       persistOrder(tx, {
         sessionUserId: session.user.id,
@@ -424,6 +441,7 @@ export async function POST(request: Request) {
         items,
         cartId: cart.id,
         deductKarmaNow: paymentMethod === "cod",
+        deferCartClearAndCouponUntilCapture,
         affiliateId: checkoutAffiliateId,
         affiliateDiscount: affiliateDiscount,
       }),

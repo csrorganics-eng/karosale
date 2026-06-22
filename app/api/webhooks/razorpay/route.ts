@@ -4,6 +4,7 @@ import { orders } from "@/lib/db/schema";
 import { verifyWebhookSignature } from "@/lib/razorpay";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { applyKarmaRedemptionForPaidOrder } from "@/lib/loyalty";
+import { finalizeDeferredCheckoutAfterCapture } from "@/lib/orders/finalize-captured-payment";
 
 /** Razorpay payment entity (subset used by webhooks). Amounts in paise. */
 type RazorpayPaymentEntity = {
@@ -74,6 +75,8 @@ export async function POST(request: Request) {
           .where(eq(orders.id, order.id));
 
         await applyKarmaRedemptionForPaidOrder(order.id);
+
+        await finalizeDeferredCheckoutAfterCapture(order.id);
 
         await inngest.send({
           name: INNGEST_EVENTS.ORDER_PLACED,

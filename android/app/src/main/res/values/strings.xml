@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CSR Organics</string>
+    <string name="title_activity_main">CSR Organics</string>
+    <string name="package_name">com.csrorganics.store</string>
+    <string name="custom_url_scheme">com.csrorganics.store</string>
+</resources>

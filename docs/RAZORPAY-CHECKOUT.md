@@ -25,7 +25,13 @@ Updating `RAZORPAY_WEBHOOK_SECRET` in `.env.local` only affects **webhooks**. It
 ## 2. Other env vars (checkout)
 
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — [API keys](https://dashboard.razorpay.com/app/keys)
-- `NEXT_PUBLIC_RAZORPAY_KEY_ID` — same Key ID, exposed to the browser for Checkout.js
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID` — **must be the same Key ID** as `RAZORPAY_KEY_ID` (same mode: both test `rzp_test_*` or both live `rzp_live_*`). If the public key and server key differ, Checkout.js will not complete payments against orders created on the server.
+
+## Cart and coupons (online vs COD)
+
+For **Cash on Delivery**, the cart is cleared and coupon usage is recorded when the order is created.
+
+For **Razorpay (and other non-COD methods)**, the cart and coupon redemption stay **unchanged until payment is captured**. Then `POST /api/orders/verify-payment` or the `payment.captured` webhook runs `finalizeDeferredCheckoutAfterCapture`, which clears the cart and records coupon usage. That way a failed or abandoned Razorpay attempt does not empty the bag or burn a one-time coupon.
 
 ## 3. Inngest
 
