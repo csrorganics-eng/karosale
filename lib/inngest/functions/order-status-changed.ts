@@ -12,13 +12,43 @@ import { sendWhatsAppMessage, WHATSAPP_TEMPLATES } from "@/lib/interakt";
 import { inngest, INNGEST_EVENTS } from "@/lib/inngest/client";
 import { KARMA_POINTS_PER_RUPEE } from "@/lib/orders";
 
-const STATUS_MESSAGES: Record<string, string> = {
-  confirmed: "Your order is confirmed!",
-  packed: "Your order is packed and ready to ship.",
-  shipped: "Your order is on the way!",
-  out_for_delivery: "Your order is out for delivery today!",
-  delivered: "Delivered! Enjoy your organic products.",
-  cancelled: "Your order has been cancelled. Refund in 5-7 days if applicable.",
+const STATUS_MESSAGES: Record<string, { title: string; body: string }> = {
+  confirmed: {
+    title: "✅ Order confirmed",
+    body: "Your order is confirmed and being prepared.",
+  },
+  processing: {
+    title: "📦 Order is being packed",
+    body: "Our team is packing your organic products.",
+  },
+  packed: {
+    title: "📦 Ready to ship",
+    body: "Your order is packed and will be handed to the courier soon.",
+  },
+  shipped: {
+    title: "🚚 Order shipped!",
+    body: "Your order is on the way. Track it in the app.",
+  },
+  out_for_delivery: {
+    title: "📍 Out for delivery today!",
+    body: "Your CSR Organics order will arrive today. Be available to receive it.",
+  },
+  delivered: {
+    title: "🎉 Delivered!",
+    body: "Your order has been delivered. Enjoy your organic products! Tap to review.",
+  },
+  cancelled: {
+    title: "❌ Order cancelled",
+    body: "Your order has been cancelled. Any payment will be refunded in 5–7 days.",
+  },
+  returned: {
+    title: "↩️ Return confirmed",
+    body: "Your return has been processed. Refund will be initiated shortly.",
+  },
+  refunded: {
+    title: "💳 Refund processed",
+    body: "Your refund has been initiated and will reflect in 5–7 business days.",
+  },
 };
 
 export const orderStatusChangedFunction = inngest.createFunction(
@@ -49,34 +79,137 @@ export const orderStatusChangedFunction = inngest.createFunction(
 
     await step.run("notify", async () => {
       const { order, user } = orderData;
-      if (!order || !user?.phone) return;
+      if (!order || !user) return;
 
-      const message = STATUS_MESSAGES[status] ?? `Order status: ${status}`;
+      const msg = STATUS_MESSAGES[status] ?? {
+        title: `Order update`,
+        body: `Your order ${order.orderNumber} status: ${status}`,
+      };
+
+      // --- Push notification (mobile) ---
       try {
-        await sendWhatsAppMessage({
-          phoneNumber: user.phone,
-          templateName: WHATSAPP_TEMPLATES.ORDER_SHIPPED,
-          bodyValues: [order.orderNumber, message],
+        const { sendPushToUser } = await import("@/lib/push/expo");
+        await sendPushToUser(user.id, {
+          title: `${msg.title} · ${order.orderNumber}`,
+          body: msg.body,
+          data: { screen: "order", orderId, orderNumber: order.orderNumber, status },
+          sound: "default",
+          channelId: "orders",
+          priority: status === "out_for_delivery" || status === "delivered" ? "high" : "default",
         });
         await db.insert(notificationsLog).values({
           userId: user.id,
           orderId,
-          channel: "whatsapp",
-          templateName: "order_status_update",
+          channel: "push",
+          templateName: "order_status_push",
           status: "sent",
-          payload: { status, message },
+          payload: { status, title: msg.title },
           sentAt: new Date(),
         });
       } catch (err) {
-        console.error("[order-status-changed]", err);
+        console.error("[order-status-changed] Push failed:", err);
       }
 
+      // --- WhatsApp ---
+      if (user.phone) {
+        try {
+          await sendWhatsAppMessage({
+            phoneNumber: user.phone,
+            templateName: WHATSAPP_TEMPLATES.ORDER_SHIPPED,
+            bodyValues: [order.orderNumber, msg.body],
+          });
+          await db.insert(notificationsLog).values({
+            userId: user.id,
+            orderId,
+            channel: "whatsapp",
+            templateName: "order_status_update",
+            status: "sent",
+            payload: { status, message: msg.body },
+            sentAt: new Date(),
+          });
+        } catch (err) {
+          console.error("[order-status-changed] WhatsApp failed:", err);
+        }
+      }
+
+      // --- Email ---
       if (user.email) {
         await sendEmail({
           to: user.email,
-          subject: `Order ${order.orderNumber} — ${status}`,
-          html: `<p>${message}</p>`,
+          subject: `${msg.title} — Order ${order.orderNumber}`,
+          html: `<p>${msg.body}</p><p><a href="${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/orders/${orderId}">View order details</a></p>`,
         }).catch(console.error);
+      }
+
+      // ── Admin push alert ───────────────────────────────────────────────────
+      // Admin messages are different from shopper messages — they focus on
+      // action needed (cancellations/returns need refund processing; new
+      // payments need fulfilment; all statuses help the ops team track flow).
+      const ADMIN_ALERT: Record<string, { title: string; body: string; priority: "high" | "default" }> = {
+        // Customer-initiated, need admin action
+        cancelled: {
+          title: "❌ Order cancelled by customer",
+          body: `#${order.orderNumber} was cancelled. Refund/restocking may be needed.`,
+          priority: "high",
+        },
+        returned: {
+          title: "↩️ Return request confirmed",
+          body: `#${order.orderNumber} — process pickup & refund.`,
+          priority: "high",
+        },
+        refunded: {
+          title: "💳 Refund initiated",
+          body: `#${order.orderNumber} refund was triggered. Verify in payment gateway.`,
+          priority: "high",
+        },
+        // Fulfilment milestones — informational for ops
+        confirmed: {
+          title: "✅ Payment confirmed — ready to pack",
+          body: `#${order.orderNumber} · ₹${Number(order.total).toLocaleString("en-IN")} — start packing.`,
+          priority: "high",
+        },
+        processing: {
+          title: "📦 Order in processing",
+          body: `#${order.orderNumber} is being packed by the team.`,
+          priority: "default",
+        },
+        packed: {
+          title: "📦 Packed — awaiting handover",
+          body: `#${order.orderNumber} is packed and ready for courier pickup.`,
+          priority: "default",
+        },
+        shipped: {
+          title: "🚚 Handed to courier",
+          body: `#${order.orderNumber} has been shipped.`,
+          priority: "default",
+        },
+        out_for_delivery: {
+          title: "📍 Out for delivery",
+          body: `#${order.orderNumber} is out for delivery today.`,
+          priority: "default",
+        },
+        delivered: {
+          title: "🎉 Delivered successfully",
+          body: `#${order.orderNumber} was delivered. Karma points will be awarded.`,
+          priority: "default",
+        },
+      };
+
+      const adminAlert = ADMIN_ALERT[status];
+      if (adminAlert) {
+        try {
+          const { sendPushToAdmins } = await import("@/lib/push/expo");
+          await sendPushToAdmins({
+            title: adminAlert.title,
+            body: adminAlert.body,
+            data: { screen: "admin-order", orderId, orderNumber: order.orderNumber, status },
+            sound: "default",
+            channelId: "orders",
+            priority: adminAlert.priority,
+          });
+        } catch (err) {
+          console.error("[order-status-changed] Admin push failed:", err);
+        }
       }
     });
 
@@ -118,6 +251,21 @@ export const orderStatusChangedFunction = inngest.createFunction(
           .update(orders)
           .set({ deliveredAt: new Date(), updatedAt: new Date() })
           .where(eq(orders.id, orderId));
+
+        // Push: karma points earned
+        try {
+          const { sendPushToUser } = await import("@/lib/push/expo");
+          await sendPushToUser(user.id, {
+            title: `✨ You earned ${points} Karma points!`,
+            body: `Points from order ${order.orderNumber} are now in your account. Use them for discounts at checkout.`,
+            data: { screen: "loyalty" },
+            sound: "default",
+            channelId: "orders",
+            priority: "normal",
+          });
+        } catch (err) {
+          console.error("[order-status-changed] karma push:", err);
+        }
       });
 
       await step.sleep("review-delay", "24h");

@@ -1,0 +1,46 @@
+/** Mirrors web `app/globals.css` tokens for brand parity. */
+export const theme = {
+  colors: {
+    primary: "#1e4d3a",
+    primaryLight: "#8eb5a0",
+    primaryMuted: "#c5d9ce",
+    primaryFg: "#fafbf9",
+    accent: "#e8f1ec",
+    accentSoft: "#f3f8f5",
+    accentWarm: "#d8562a",
+    accentWarmEnd: "#b8321e",
+    accentWarmMuted: "#fceee9",
+    background: "#fafbf9",
+    surface: "#ffffff",
+    surfaceSubtle: "#f0f4f1",
+    text: "#141c17",
+    textMuted: "#5a6b62",
+    border: "#dde8e2",
+    error: "#c62828",
+    success: "#1d6b45",
+    sale: "#c41e3a",
+    amber: "#b45309",
+  },
+  radius: {
+    card: 18,
+    button: 12,
+    input: 10,
+    pill: 24,
+  },
+  shadow: {
+    soft: {
+      shadowColor: "#141c17",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.06,
+      shadowRadius: 28,
+      elevation: 4,
+    },
+    medium: {
+      shadowColor: "#141c17",
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.08,
+      shadowRadius: 32,
+      elevation: 8,
+    },
+  },
+} as const;

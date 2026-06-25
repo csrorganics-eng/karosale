@@ -9,9 +9,10 @@ This repo is a **Next.js** storefront (server-rendered pages, API routes, webhoo
 
 | Item | Notes |
 |------|--------|
-| Config | `apps/mobile/.env.example` → copy to `.env` and set `EXPO_PUBLIC_API_ORIGIN` to your Next origin (LAN IP for device + local `next dev`, or production HTTPS). |
-| Run | From repo root: `npm run native:start` (or `cd apps/mobile && npm start`). |
-| Store build | Use [EAS Build](https://docs.expo.dev/build/introduction/) (`eas build`) after `eas init` and Apple/Google credentials. |
+| **SDK** | **Expo SDK 54** — matches **Expo Go on the App Store / Play Store**. Do **not** use SDK 56 with store Expo Go; it is not published there yet. |
+| Config | `apps/mobile/.env.example` → copy to `.env` and set `EXPO_PUBLIC_API_ORIGIN`. |
+| Run | `npm run native:start` or `cd apps/mobile && npm start`. After dependency changes: `npx rimraf node_modules && npm install`. |
+| Store build | [EAS Build](https://docs.expo.dev/build/introduction/) (`eas build`) after `eas init`. |
 
 React Native does **not** enforce browser CORS; the app calls your REST routes directly.
 

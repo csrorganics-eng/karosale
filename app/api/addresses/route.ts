@@ -9,7 +9,7 @@ const addressSchema = z.object({
   name: z.string().min(2).max(255),
   phone: z.string().min(10).max(20),
   line1: z.string().min(5).max(500),
-  line2: z.string().max(500).optional(),
+  line2: z.string().max(500).nullish(),
   city: z.string().min(2).max(100),
   state: z.string().min(2).max(100),
   pincode: z.string().regex(/^\d{6}$/, "Pincode must be 6 digits"),

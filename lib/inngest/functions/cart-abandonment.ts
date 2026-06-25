@@ -36,6 +36,31 @@ export const cartAbandonmentFunction = inngest.createFunction(
 
     if (!stillActive) return { cancelled: true };
 
+    // --- Push notification: gentle cart reminder ---
+    await step.run("step-1-push", async () => {
+      if (!record.userId) return;
+      try {
+        const { sendPushToUser } = await import("@/lib/push/expo");
+        await sendPushToUser(record.userId, {
+          title: "🛒 Still thinking it over?",
+          body: `Your bag with ₹${Number(record.cartValue).toLocaleString("en-IN")} of organic products is waiting for you.`,
+          data: { screen: "cart" },
+          sound: "default",
+          channelId: "reminders",
+          priority: "normal",
+        });
+        await db.insert(notificationsLog).values({
+          channel: "push",
+          templateName: "cart_abandonment_push_step1",
+          status: "sent",
+          payload: { abandonmentId, cartValue: record.cartValue },
+          sentAt: new Date(),
+        });
+      } catch (err) {
+        console.error("[cart-abandonment] step-1-push:", err);
+      }
+    });
+
     await step.run("step-1-whatsapp", async () => {
       if (!record.phone) return;
       try {

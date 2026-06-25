@@ -1,35 +1,16 @@
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { cartItems, products } from "@/lib/db/schema";
-import { findOrCreateCart, getCartWithItems } from "@/lib/db/queries/cart";
+import { getCartWithItems } from "@/lib/db/queries/cart";
 import { addToCartSchema } from "@/lib/validations/cart";
 import { jsonOkPrivateNoStore, jsonError } from "@/lib/api-response";
-import {
-  CART_SESSION_COOKIE_NAME,
-  cartSessionCookieOptions,
-  newCartSessionId,
-} from "@/lib/cart-cookie";
-
-async function resolveCart() {
-  const session = await auth();
-  const cookieStore = await cookies();
-  let sessionId = cookieStore.get(CART_SESSION_COOKIE_NAME)?.value;
-
-  if (!sessionId && !session?.user?.id) {
-    sessionId = newCartSessionId();
-    cookieStore.set(CART_SESSION_COOKIE_NAME, sessionId, cartSessionCookieOptions());
-  }
-
-  return findOrCreateCart(session?.user?.id, sessionId);
-}
+import { resolveCartFromRequest } from "@/lib/cart/resolve-cart";
 
 export async function GET() {
   try {
-    const cart = await resolveCart();
+    const { cart, newCartSessionId } = await resolveCartFromRequest();
     const data = await getCartWithItems(cart.id);
-    return jsonOkPrivateNoStore(data);
+    return jsonOkPrivateNoStore(data, 200, newCartSessionId);
   } catch (error) {
     console.error("[GET /api/cart]", error);
     return jsonError("Failed to fetch cart", 500);
@@ -44,7 +25,7 @@ export async function POST(request: Request) {
       return jsonError("Invalid request", 400, parsed.error.flatten());
     }
 
-    const cart = await resolveCart();
+    const { cart, newCartSessionId } = await resolveCartFromRequest();
     const { productId, variantId, qty, isSubscription } = parsed.data;
 
     const [product] = await db
@@ -97,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     const data = await getCartWithItems(cart.id);
-    return jsonOkPrivateNoStore(data);
+    return jsonOkPrivateNoStore(data, 200, newCartSessionId);
   } catch (error) {
     console.error("[POST /api/cart]", error);
     return jsonError("Failed to add to cart", 500);

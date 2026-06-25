@@ -1,5 +1,7 @@
 /** HttpOnly guest cart binding (separate from NextAuth session). */
 export const CART_SESSION_COOKIE_NAME = "csrorganics_cart_session";
+/** Native apps send this header instead of cookies. */
+export const CART_SESSION_HEADER_NAME = "x-cart-session";
 
 const CART_SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 

@@ -18,6 +18,8 @@ import {
   buildMagicLinkEmailHtml,
   buildMagicLinkEmailText,
 } from "@/lib/magic-link-email";
+import { headers } from "next/headers";
+import { verifyMobileAccessToken } from "@/lib/auth/mobile-tokens";
 
 const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -116,7 +118,7 @@ const providers: NextAuthConfig["providers"] = [
   }),
 ];
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, signIn, signOut, auth: nextAuthSession } = NextAuth({
   secret,
   trustHost: true,
   adapter: process.env.DATABASE_URL?.trim()
@@ -170,6 +172,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+/** Session from Bearer token (native app) or NextAuth cookie (web). */
+export async function getAppSession() {
+  try {
+    const h = await headers();
+    const authHeader = h.get("authorization");
+    if (authHeader?.toLowerCase().startsWith("bearer ")) {
+      const token = authHeader.slice(7).trim();
+      const user = await verifyMobileAccessToken(token);
+      if (user) {
+        return {
+          user: {
+            id: user.id,
+            email: user.email ?? undefined,
+            name: user.name ?? undefined,
+            role: user.role,
+          },
+          expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+      }
+    }
+  } catch {
+    /* headers() unavailable outside request scope */
+  }
+  return nextAuthSession();
+}
+
+/** Drop-in replacement for `auth()` — supports mobile Bearer tokens. */
+export async function auth() {
+  return getAppSession();
+}
 
 export type UserRole = "customer" | "admin" | "vendor" | "packer";
 

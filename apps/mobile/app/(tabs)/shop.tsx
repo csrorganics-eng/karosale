@@ -1,138 +1,158 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
-  Image,
   Pressable,
-  RefreshControl,
+  ScrollView,
   StyleSheet,
-  View as RNView,
+  Text,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { ProductCard } from "@/components/commerce/ProductCard";
+import { theme } from "@/constants/theme";
+import { shopApi } from "@/lib/api/shop";
 
-import { Text, View } from "@/components/Themed";
-import { fetchProductList, type ProductCard } from "@/lib/api";
-import Colors from "@/constants/Colors";
-import { useColorScheme } from "@/components/useColorScheme";
+const SCREEN_W = Dimensions.get("window").width;
+const CARD_W = (SCREEN_W - 16 * 2 - 12) / 2;
 
-function formatInr(price: string): string {
-  const n = Number(price);
-  if (Number.isNaN(n)) return `₹${price}`;
-  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-}
+const SORTS = [
+  { id: "newest", label: "Newest" },
+  { id: "bestsellers", label: "Bestsellers" },
+  { id: "price_asc", label: "Price ↑" },
+  { id: "price_desc", label: "Price ↓" },
+  { id: "rating", label: "Top rated" },
+] as const;
 
 export default function ShopScreen() {
-  const router = useRouter();
-  const scheme = useColorScheme() ?? "light";
-  const [items, setItems] = useState<ProductCard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { category } = useLocalSearchParams<{ category?: string }>();
+  const [sort, setSort] = useState<(typeof SORTS)[number]["id"]>("newest");
+  const [organicOnly, setOrganicOnly] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const data = await fetchProductList({ page: 1, limit: 30, sort: "newest" });
-      setItems(data.items);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load products");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+    queryKey: ["products", category, sort, organicOnly],
+    queryFn: () =>
+      shopApi.products({
+        page: 1,
+        limit: 40,
+        sort,
+        category: typeof category === "string" ? category : undefined,
+        isOrganic: organicOnly ? "true" : undefined,
+      }),
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { data: cart } = useQuery({ queryKey: ["cart"], queryFn: () => shopApi.cart() });
+  const inCartMap = new Map((cart?.items ?? []).map((i) => [i.productId, i.qty]));
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    void load();
-  }, [load]);
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors[scheme].tint} />
-        <Text style={styles.hint}>Loading catalog…</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorTitle}>Could not load products</Text>
-        <Text style={styles.errorBody}>{error}</Text>
-        <Pressable onPress={() => void load()} style={[styles.retry, { backgroundColor: Colors[scheme].tint }]}>
-          <Text style={styles.retryText}>Retry</Text>
-        </Pressable>
-      </View>
-    );
-  }
+  const title = typeof category === "string"
+    ? category.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Shop";
 
   return (
-    <RNView style={styles.flex}>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListHeaderComponent={
-          <Text style={styles.listHeader}>Latest products</Text>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
-            onPress={() => router.push(`/product/${item.slug}`)}>
-            {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={styles.thumb} resizeMode="cover" />
-            ) : (
-              <RNView style={[styles.thumb, styles.thumbPlaceholder]} />
-            )}
-            <RNView style={styles.cardBody}>
-              <Text style={styles.name} numberOfLines={2}>
-                {item.name}
+    <View style={styles.flex}>
+      <AppHeader title={title} />
+
+      {/* Filter chips */}
+      <View style={styles.filterBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContent}>
+          {SORTS.map((s) => (
+            <Pressable
+              key={s.id}
+              onPress={() => setSort(s.id)}
+              style={[styles.chip, sort === s.id && styles.chipActive]}>
+              <Text style={[styles.chipText, sort === s.id && styles.chipTextActive]}>
+                {s.label}
               </Text>
-              <Text style={styles.price}>{formatInr(item.price)}</Text>
-              {item.stockQty <= 0 ? (
-                <Text style={styles.out}>Out of stock</Text>
-              ) : null}
-            </RNView>
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={() => setOrganicOnly((v) => !v)}
+            style={[styles.chip, styles.chipOrganic, organicOnly && styles.chipActive]}>
+            <Text style={[styles.chipText, organicOnly && styles.chipTextActive]}>
+              🌿 Organic only
+            </Text>
           </Pressable>
-        )}
-      />
-    </RNView>
+        </ScrollView>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text style={styles.loadText}>Loading products…</Text>
+        </View>
+      ) : isError ? (
+        <View style={styles.centered}>
+          <Text style={styles.loadText}>Could not load products. Pull down to retry.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={data?.items ?? []}
+          keyExtractor={(i) => i.id}
+          numColumns={2}
+          columnWrapperStyle={styles.col}
+          contentContainerStyle={styles.list}
+          refreshing={isRefetching}
+          onRefresh={() => void refetch()}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyEmoji}>🌱</Text>
+              <Text style={styles.emptyTitle}>No products found</Text>
+              <Text style={styles.emptyText}>Try adjusting your filters</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <ProductCard {...item} width={CARD_W} inCartQty={inCartMap.get(item.id)} />
+          )}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
+  flex: { flex: 1, backgroundColor: theme.colors.background },
+  filterBar: {
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
-  hint: { marginTop: 12, opacity: 0.7 },
-  errorTitle: { fontSize: 18, fontWeight: "600", marginBottom: 8 },
-  errorBody: { textAlign: "center", opacity: 0.8, marginBottom: 20 },
-  retry: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
-  retryText: { color: "#fff", fontWeight: "600" },
-  list: { padding: 16, paddingBottom: 32 },
-  listHeader: { fontSize: 20, fontWeight: "700", marginBottom: 12 },
-  card: {
+  filterContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: "row",
-    marginBottom: 14,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "rgba(148,163,184,0.12)",
+    alignItems: "center",
+    gap: 8,
   },
-  thumb: { width: 96, height: 96, backgroundColor: "#e2e8f0" },
-  thumbPlaceholder: { alignItems: "center", justifyContent: "center" },
-  cardBody: { flex: 1, padding: 12, justifyContent: "center" },
-  name: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
-  price: { fontSize: 15, fontWeight: "700", color: "#15803d" },
-  out: { marginTop: 4, fontSize: 12, color: "#b91c1c" },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.accentSoft,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  chipOrganic: {
+    borderColor: theme.colors.primary + "40",
+  },
+  chipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  chipText: { fontSize: 13, fontWeight: "600", color: theme.colors.textMuted },
+  chipTextActive: { color: "#fff" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  loadText: { color: theme.colors.textMuted, fontSize: 14 },
+  list: { padding: 16, paddingBottom: 32 },
+  col: { justifyContent: "space-between", marginBottom: 0 },
+  emptyWrap: { alignItems: "center", paddingTop: 60 },
+  emptyEmoji: { fontSize: 40 },
+  emptyTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, marginTop: 12 },
+  emptyText: { color: theme.colors.textMuted, marginTop: 6 },
 });

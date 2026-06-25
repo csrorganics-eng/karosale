@@ -205,6 +205,27 @@ export const users = pgTable(
   ],
 );
 
+// --- Push notification tokens (Expo) ---
+export const pushTokens = pgTable(
+  "push_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    platform: varchar("platform", { length: 10 }).default("unknown").notNull(),
+    deviceId: text("device_id"),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("push_tokens_token_idx").on(table.token),
+    index("push_tokens_user_id_idx").on(table.userId),
+  ],
+);
+
 export const accounts = pgTable(
   "accounts",
   {

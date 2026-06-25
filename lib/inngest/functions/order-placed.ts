@@ -135,26 +135,54 @@ export const orderPlacedFunction = inngest.createFunction(
     await step.run("notify-customer", async () => {
       const order = orderData.order;
       const user = orderData.user;
-      if (!order || !user?.phone) return;
+      if (!order || !user) return;
 
+      // --- Push notification (mobile app) ---
       try {
-        await sendWhatsAppMessage({
-          phoneNumber: user.phone,
-          templateName: WHATSAPP_TEMPLATES.ORDER_CONFIRMED,
-          bodyValues: [order.orderNumber, String(order.total)],
+        const { sendPushToUser } = await import("@/lib/push/expo");
+        await sendPushToUser(user.id, {
+          title: "🌿 Order confirmed!",
+          body: `Order ${order.orderNumber} · ₹${Number(order.total).toLocaleString("en-IN")} is confirmed. We'll notify you when it ships.`,
+          data: { screen: "order", orderId, orderNumber: order.orderNumber },
+          sound: "default",
+          channelId: "orders",
+          priority: "high",
         });
         await db.insert(notificationsLog).values({
           userId: user.id,
           orderId,
-          channel: "whatsapp",
-          templateName: WHATSAPP_TEMPLATES.ORDER_CONFIRMED,
+          channel: "push",
+          templateName: "order_confirmed_push",
           status: "sent",
+          payload: { orderNumber: order.orderNumber },
           sentAt: new Date(),
         });
       } catch (err) {
-        console.error("[order-placed] WhatsApp failed:", err);
+        console.error("[order-placed] Push failed:", err);
       }
 
+      // --- WhatsApp (only if phone is available) ---
+      if (user.phone) {
+        try {
+          await sendWhatsAppMessage({
+            phoneNumber: user.phone,
+            templateName: WHATSAPP_TEMPLATES.ORDER_CONFIRMED,
+            bodyValues: [order.orderNumber, String(order.total)],
+          });
+          await db.insert(notificationsLog).values({
+            userId: user.id,
+            orderId,
+            channel: "whatsapp",
+            templateName: WHATSAPP_TEMPLATES.ORDER_CONFIRMED,
+            status: "sent",
+            sentAt: new Date(),
+          });
+        } catch (err) {
+          console.error("[order-placed] WhatsApp failed:", err);
+        }
+      }
+
+      // --- Email (independent of phone — always send if email exists) ---
       if (user.email) {
         try {
           const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
@@ -181,6 +209,35 @@ export const orderPlacedFunction = inngest.createFunction(
         } catch (err) {
           console.error("[order-placed] Email failed:", err);
         }
+      }
+    });
+
+    // ── Notify admin / ops team about the new order ─────────────────────────────
+    await step.run("notify-admin-new-order", async () => {
+      const order = orderData.order;
+      const user = orderData.user;
+      if (!order) return;
+
+      const customerLabel =
+        user?.name?.split(/\s+/)[0] ??
+        user?.email?.split("@")[0] ??
+        "Customer";
+      const amount = `₹${Number(order.total).toLocaleString("en-IN")}`;
+      const itemCount = orderData.items.reduce((s, i) => s + i.qty, 0);
+      const paymentLabel = order.paymentMethod === "cod" ? "COD" : "Paid online";
+
+      try {
+        const { sendPushToAdmins } = await import("@/lib/push/expo");
+        await sendPushToAdmins({
+          title: "🛒 New order received!",
+          body: `#${order.orderNumber} · ${amount} · ${itemCount} item${itemCount !== 1 ? "s" : ""} · ${paymentLabel} — ${customerLabel}`,
+          data: { screen: "admin-order", orderId, orderNumber: order.orderNumber },
+          sound: "default",
+          channelId: "orders",
+          priority: "high",
+        });
+      } catch (err) {
+        console.error("[order-placed] Admin push failed:", err);
       }
     });
 
