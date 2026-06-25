@@ -122,9 +122,11 @@ export async function sendPushToUser(
  * @param message  Notification payload (without `to`)
  * @param roles    Which roles to target. Defaults to admin + vendor + packer.
  */
+type UserRole = "customer" | "admin" | "vendor" | "packer";
+
 export async function sendPushToAdmins(
   message: Omit<ExpoPushMessage, "to">,
-  roles: string[] = ["admin", "vendor", "packer"],
+  roles: UserRole[] = ["admin", "vendor", "packer"],
 ): Promise<void> {
   const { db } = await import("@/lib/db");
   const { pushTokens, users } = await import("@/lib/db/schema");
