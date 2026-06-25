@@ -137,8 +137,7 @@ export async function sendPushToAdmins(
     .where(
       and(
         eq(pushTokens.isActive, true),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        inArray(users.role, roles as any),
+        inArray(users.role, roles),
       ),
     );
 
