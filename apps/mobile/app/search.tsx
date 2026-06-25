@@ -38,12 +38,12 @@ export default function SearchScreen() {
         }
         renderItem={({ item }) => (
           <ProductCard
-            stockQty={99}
-            comparePrice={null}
-            shortDescription={null}
-            categoryName={null}
-            categorySlug={null}
             {...item}
+            stockQty={item.stockQty ?? 99}
+            comparePrice={item.comparePrice ?? null}
+            shortDescription={item.shortDescription ?? null}
+            categoryName={item.categoryName ?? null}
+            categorySlug={item.categorySlug ?? null}
             width={CARD_W}
           />
         )}
