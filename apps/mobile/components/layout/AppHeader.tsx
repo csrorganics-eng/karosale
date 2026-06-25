@@ -63,6 +63,7 @@ export function AppHeader({ showSearch = true, title, showBack = false }: Props)
             <Pressable
               onPress={() => router.push("/search")}
               style={styles.iconBtn}
+              android_ripple={{ color: theme.colors.accent, radius: 20, borderless: true }}
               accessibilityLabel="Search">
               <Ionicons name="search-outline" size={22} color={theme.colors.text} />
             </Pressable>
@@ -70,6 +71,7 @@ export function AppHeader({ showSearch = true, title, showBack = false }: Props)
           <Pressable
             onPress={() => router.push("/(tabs)/cart")}
             style={styles.iconBtn}
+            android_ripple={{ color: theme.colors.accent, radius: 20, borderless: true }}
             accessibilityLabel={`Cart, ${count} items`}>
             <Ionicons name="bag-outline" size={22} color={theme.colors.text} />
             {count > 0 ? (
@@ -122,7 +124,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   actions: { flexDirection: "row", gap: 2, alignItems: "center" },
-  iconBtn: { padding: 8, position: "relative" },
+  iconBtn: {
+    padding: 8,
+    borderRadius: 20,
+  },
   badge: {
     position: "absolute",
     top: 2,
