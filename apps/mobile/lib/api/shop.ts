@@ -78,13 +78,13 @@ export type AuthTokens = {
 
 export const shopApi = {
   login: (email: string, password: string) =>
-    apiFetch<AuthTokens>("/api/auth/mobile/login", {
+    apiFetch<AuthTokens>("/api/mobile/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   register: (email: string, password: string, name?: string) =>
-    apiFetch<AuthTokens>("/api/auth/mobile/register", {
+    apiFetch<AuthTokens>("/api/mobile/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password, name }),
     }),

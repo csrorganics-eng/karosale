@@ -38,7 +38,7 @@ async function refreshAccessToken(): Promise<string | null> {
   refreshPromise = (async () => {
     const refreshToken = await getRefreshToken();
     if (!refreshToken) return null;
-    const res = await fetch(`${getApiOrigin()}/api/auth/mobile/refresh`, {
+    const res = await fetch(`${getApiOrigin()}/api/mobile/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ refreshToken }),
