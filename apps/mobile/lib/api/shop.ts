@@ -77,6 +77,18 @@ export type AuthTokens = {
 };
 
 export const shopApi = {
+  forgotPassword: (email: string) =>
+    apiFetch<{ sent: boolean; resetToken?: string }>("/api/mobile/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (resetToken: string, code: string, newPassword: string) =>
+    apiFetch<{ reset: boolean }>("/api/mobile/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ resetToken, code, newPassword }),
+    }),
+
   login: (email: string, password: string) =>
     apiFetch<AuthTokens>("/api/mobile/auth/login", {
       method: "POST",

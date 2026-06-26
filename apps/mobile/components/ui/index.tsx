@@ -90,6 +90,9 @@ export function Input({
   secureTextEntry,
   keyboardType,
   multiline,
+  returnKeyType,
+  onSubmitEditing,
+  autoCapitalize,
   style,
 }: {
   value: string;
@@ -98,6 +101,9 @@ export function Input({
   secureTextEntry?: boolean;
   keyboardType?: "default" | "email-address" | "number-pad" | "phone-pad";
   multiline?: boolean;
+  returnKeyType?: "done" | "go" | "next" | "search" | "send";
+  onSubmitEditing?: () => void;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
   style?: TextStyle;
 }) {
   return (
@@ -109,6 +115,9 @@ export function Input({
       secureTextEntry={secureTextEntry}
       keyboardType={keyboardType}
       multiline={multiline}
+      returnKeyType={returnKeyType}
+      onSubmitEditing={onSubmitEditing}
+      autoCapitalize={autoCapitalize}
       style={[styles.input, multiline && { minHeight: 88, textAlignVertical: "top" as const }, style]}
     />
   );

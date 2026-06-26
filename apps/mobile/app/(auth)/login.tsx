@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Button, Input, Screen } from "@/components/ui";
@@ -48,12 +48,22 @@ export default function LoginScreen() {
           placeholder="Email address"
           keyboardType="email-address"
         />
-        <Input
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Password"
-          secureTextEntry
-        />
+        <View>
+          <Input
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            secureTextEntry
+            returnKeyType="done"
+            onSubmitEditing={() => void onSubmit()}
+            autoCapitalize="none"
+          />
+          <Pressable
+            onPress={() => router.push("/(auth)/forgot-password")}
+            style={styles.forgotWrap}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
+        </View>
         <Button label="Sign in" onPress={() => void onSubmit()} loading={loading} variant="warm" />
         <Button
           label="Create an account instead"
@@ -75,4 +85,6 @@ const styles = StyleSheet.create({
   title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 32, color: theme.colors.text },
   sub: { marginTop: 10, fontSize: 16, color: theme.colors.textMuted, lineHeight: 22 },
   form: { padding: 24, gap: 12 },
+  forgotWrap: { alignSelf: "flex-end", marginTop: 6 },
+  forgotText: { fontSize: 13, color: theme.colors.primary, fontWeight: "600" },
 });

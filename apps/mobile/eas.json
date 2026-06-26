@@ -6,13 +6,25 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_ORIGIN": "https://csrorganics.vercel.app",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_Srtzad38MS07H3"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_ORIGIN": "https://csrorganics.vercel.app",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_Srtzad38MS07H3"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_ORIGIN": "https://csrorganics.vercel.app",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_Srtzad38MS07H3"
+      }
     }
   },
   "submit": {

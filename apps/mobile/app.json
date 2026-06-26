@@ -18,8 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.csrorganics",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.csrorganics"
     },
     "web": {
       "bundler": "metro",
